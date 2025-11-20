@@ -1,0 +1,43 @@
+{
+  "common": {
+    "login": "Войти",
+    "logout": "Выйти",
+    "register": "Регистрация",
+    "dashboard": "Панель управления",
+    "network": "Сетевой трафик",
+    "alerts": "Оповещения безопасности",
+    "threats": "Угрозы",
+    "settings": "Настройки",
+    "users": "Управление пользователями",
+    "search": "Поиск",
+    "filter": "Фильтр",
+    "export": "Экспорт",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "delete": "Удалить",
+    "edit": "Редактировать",
+    "view": "Просмотр",
+    "close": "Закрыть"
+  },
+  "auth": {
+    "username": "Имя пользователя",
+    "password": "Пароль",
+    "email": "Электронная почта",
+    "rememberMe": "Запомнить меня",
+    "forgotPassword": "Забыли пароль?",
+    "loginTitle": "Добро пожаловать",
+    "loginSubtitle": "Войдите, чтобы продолжить"
+  },
+  "dashboard": {
+    "title": "Панель управления",
+    "totalTraffic": "Общий трафик (24ч)",
+    "activeConnections": "Активные соединения",
+    "alertsCount": "Оповещения безопасности",
+    "systemHealth": "Состояние системы",
+    "trafficTimeline": "График трафика (24ч)",
+    "alertDistribution": "Распределение оповещений",
+    "topSourceIPs": "Топ 5 IP-адресов",
+    "recentAlerts": "Последние оповещения"
+  }
+}
+

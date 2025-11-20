@@ -1,0 +1,43 @@
+{
+  "common": {
+    "login": "Кіру",
+    "logout": "Шығу",
+    "register": "Тіркелу",
+    "dashboard": "Басқару панелі",
+    "network": "Желі трафигі",
+    "alerts": "Қауіпсіздік ескертулері",
+    "threats": "Қауіптер",
+    "settings": "Баптаулар",
+    "users": "Пайдаланушыларды басқару",
+    "search": "Іздеу",
+    "filter": "Сүзгілеу",
+    "export": "Экспорттау",
+    "save": "Сақтау",
+    "cancel": "Болдырмау",
+    "delete": "Жою",
+    "edit": "Өңдеу",
+    "view": "Көру",
+    "close": "Жабу"
+  },
+  "auth": {
+    "username": "Пайдаланушы аты",
+    "password": "Құпия сөз",
+    "email": "Электрондық пошта",
+    "rememberMe": "Мені есте сақтау",
+    "forgotPassword": "Құпия сөзді ұмыттыңыз ба?",
+    "loginTitle": "Қош келдіңіз",
+    "loginSubtitle": "Жалғастыру үшін кіріңіз"
+  },
+  "dashboard": {
+    "title": "Басқару панелі",
+    "totalTraffic": "Жалпы трафик (24с)",
+    "activeConnections": "Белсенді байланыстар",
+    "alertsCount": "Қауіпсіздік ескертулері",
+    "systemHealth": "Жүйенің күйі",
+    "trafficTimeline": "Трафик графигі (24с)",
+    "alertDistribution": "Ескертулердің таралуы",
+    "topSourceIPs": "Топ 5 IP-мекенжайы",
+    "recentAlerts": "Соңғы ескертулер"
+  }
+}
+

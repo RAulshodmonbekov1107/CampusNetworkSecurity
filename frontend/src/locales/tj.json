@@ -1,0 +1,43 @@
+{
+  "common": {
+    "login": "Вуруд",
+    "logout": "Баромад",
+    "register": "Бақайдгирӣ",
+    "dashboard": "Панели идоракунӣ",
+    "network": "Трафики шабака",
+    "alerts": "Огоҳиҳои амният",
+    "threats": "Таҳдидҳо",
+    "settings": "Танзимот",
+    "users": "Идоракунии корбарон",
+    "search": "Ҷустуҷӯ",
+    "filter": "Филтр",
+    "export": "Содир кардан",
+    "save": "Нигоҳ доштан",
+    "cancel": "Бекор кардан",
+    "delete": "Нест кардан",
+    "edit": "Таҳрир кардан",
+    "view": "Мушоҳида",
+    "close": "Пӯшидан"
+  },
+  "auth": {
+    "username": "Номи корбар",
+    "password": "Парол",
+    "email": "Почтаи электронӣ",
+    "rememberMe": "Маро дар хотир нигоҳ дор",
+    "forgotPassword": "Паролро фаромӯш кардед?",
+    "loginTitle": "Хуш омадед",
+    "loginSubtitle": "Барои идома додан ворид шавед"
+  },
+  "dashboard": {
+    "title": "Панели идоракунӣ",
+    "totalTraffic": "Трафики умумӣ (24с)",
+    "activeConnections": "Пайвандҳои фаъол",
+    "alertsCount": "Огоҳиҳои амният",
+    "systemHealth": "Вазъияти система",
+    "trafficTimeline": "Графики трафик (24с)",
+    "alertDistribution": "Тақсимоти огоҳиҳо",
+    "topSourceIPs": "5 IP-адреси боло",
+    "recentAlerts": "Огоҳиҳои охирин"
+  }
+}
+

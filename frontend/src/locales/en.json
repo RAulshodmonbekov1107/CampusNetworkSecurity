@@ -1,0 +1,43 @@
+{
+  "common": {
+    "login": "Login",
+    "logout": "Logout",
+    "register": "Register",
+    "dashboard": "Dashboard",
+    "network": "Network Traffic",
+    "alerts": "Security Alerts",
+    "threats": "Threat Intelligence",
+    "settings": "Settings",
+    "users": "User Management",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "close": "Close"
+  },
+  "auth": {
+    "username": "Username",
+    "password": "Password",
+    "email": "Email",
+    "rememberMe": "Remember me",
+    "forgotPassword": "Forgot password?",
+    "loginTitle": "Welcome Back",
+    "loginSubtitle": "Sign in to continue to Campus Security Monitor"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "totalTraffic": "Total Traffic (24h)",
+    "activeConnections": "Active Connections",
+    "alertsCount": "Security Alerts",
+    "systemHealth": "System Health",
+    "trafficTimeline": "Traffic Timeline (24h)",
+    "alertDistribution": "Alert Distribution",
+    "topSourceIPs": "Top 5 Source IPs",
+    "recentAlerts": "Recent Security Alerts"
+  }
+}
+

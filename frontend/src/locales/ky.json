@@ -1,0 +1,43 @@
+{
+  "common": {
+    "login": "Кирүү",
+    "logout": "Чыгуу",
+    "register": "Катталуу",
+    "dashboard": "Башкаруу панели",
+    "network": "Тармак трафиги",
+    "alerts": "Коопсуздук эскертүүлөрү",
+    "threats": "Коркунучтар",
+    "settings": "Жөндөөлөр",
+    "users": "Колдонуучуларды башкаруу",
+    "search": "Издөө",
+    "filter": "Чыпкалоо",
+    "export": "Экспорттоо",
+    "save": "Сактоо",
+    "cancel": "Жокко чыгаруу",
+    "delete": "Жок кылуу",
+    "edit": "Түзөтүү",
+    "view": "Көрүү",
+    "close": "Жабуу"
+  },
+  "auth": {
+    "username": "Колдонуучу аты",
+    "password": "Сырсөз",
+    "email": "Электрондук почта",
+    "rememberMe": "Мени эстеп калуу",
+    "forgotPassword": "Сырсөздү унуттуңузбу?",
+    "loginTitle": "Кош келдиңиз",
+    "loginSubtitle": "Улантуу үчүн кириңиз"
+  },
+  "dashboard": {
+    "title": "Башкаруу панели",
+    "totalTraffic": "Жалпы трафик (24с)",
+    "activeConnections": "Активдүү байланыштар",
+    "alertsCount": "Коопсуздук эскертүүлөрү",
+    "systemHealth": "Системанын абалы",
+    "trafficTimeline": "Трафик графиги (24с)",
+    "alertDistribution": "Эскертүүлөрдүн бөлүштүрүлүшү",
+    "topSourceIPs": "Топ 5 IP-дареги",
+    "recentAlerts": "Акыркы эскертүүлөр"
+  }
+}
+

@@ -1,0 +1,4 @@
+- pipeline.id: zeek-suricata
+  path.config: /usr/share/logstash/pipeline/zeek_suricata_to_kafka_es.conf
+
+

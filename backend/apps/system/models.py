@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 
 class SystemSettings(models.Model):
@@ -17,4 +18,3 @@ class SystemSettings(models.Model):
     
     def __str__(self):
         return f"{self.category}.{self.key}"
-

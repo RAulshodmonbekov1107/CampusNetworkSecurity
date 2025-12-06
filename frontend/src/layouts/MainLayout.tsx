@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import Navbar from '../components/layout/Navbar';
 import { Box } from '@mui/material';
+import { motion } from 'framer-motion';
 
 const MainLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -17,13 +18,18 @@ const MainLayout: React.FC = () => {
           display: 'flex',
           flexDirection: 'column',
           ml: sidebarOpen ? '260px' : '80px',
-          transition: 'margin-left 0.3s ease',
+          transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <Box sx={{ flexGrow: 1, p: 3 }}>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          style={{ flexGrow: 1, padding: '24px' }}
+        >
           <Outlet />
-        </Box>
+        </motion.div>
       </Box>
     </Box>
   );

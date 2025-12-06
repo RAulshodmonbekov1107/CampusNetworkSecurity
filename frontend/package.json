@@ -11,6 +11,7 @@
     "@mui/x-date-pickers": "^6.18.1",
     "axios": "^1.6.2",
     "chart.js": "^4.4.0",
+    "framer-motion": "^12.23.24",
     "i18next": "^23.7.6",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.2.0",
@@ -56,4 +57,3 @@
   },
   "proxy": "http://localhost:8000"
 }
-

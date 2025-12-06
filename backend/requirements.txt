@@ -9,6 +9,31 @@ python-decouple==3.8
 django-filter==23.5
 celery==5.3.4
 Pillow==10.1.0
+
+# Caching & Performance
+django-redis==5.4.0
+
+# Rate Limiting & Security
+django-ratelimit==4.1.0
+
+# Testing
+pytest==7.4.3
+pytest-django==4.7.0
+pytest-cov==4.1.0
+factory-boy==3.3.0
+
+# API Documentation
+drf-yasg==1.21.7
+
+# Monitoring
+django-prometheus==2.3.1
+
 # Optional: Uncomment for PostgreSQL support
 # psycopg2-binary==2.9.9
 
+# Elasticsearch & Kafka clients for advanced integrations
+elasticsearch==8.13.0
+confluent-kafka==2.5.0
+
+requests==2.32.3
+psutil==5.9.6

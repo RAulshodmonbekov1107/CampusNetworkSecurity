@@ -72,6 +72,8 @@ services:
     environment:
       - DEBUG=1
       - USE_POSTGRES=0
+      - ALLOWED_HOSTS=localhost,127.0.0.1,64.226.115.117
+      - CORS_ALLOWED_ORIGINS=http://64.226.115.117:3000
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - ELASTICSEARCH_HOST=http://elasticsearch:9200
@@ -92,7 +94,7 @@ services:
     command: ["npm", "start"]
     environment:
       - CHOKIDAR_USEPOLLING=true
-      - REACT_APP_API_BASE=http://localhost:8000/api
+      - REACT_APP_API_BASE=http://64.226.115.117:8000/api
       - HOST=0.0.0.0
       - DANGEROUSLY_DISABLE_HOST_CHECK=true
       - WDS_SOCKET_PORT=0

@@ -80,7 +80,11 @@ def dashboard_stats(request):
                     }
                 },
                 "by_source_ip": {
-                    "terms": {"field": "source_ip", "size": 5, "missing": "unknown"},
+                    "terms": {
+                        "field": "source_ip",
+                        "size": 5,
+                        "missing": "unknown"
+                    },
                     "aggs": {
                         "total_bytes": {
                             "sum": {
@@ -134,7 +138,7 @@ def dashboard_stats(request):
         top_source_ips = [
             {
                 "source_ip": b["key"],
-                "total_bytes": int(b["aggregations"]["total_bytes"]["value"] or 0),
+                "total_bytes": int(b.get("total_bytes", {}).get("value", 0) or 0),
                 "count": b["doc_count"],
             }
             for b in es_resp["aggregations"]["by_source_ip"]["buckets"]
@@ -148,6 +152,11 @@ def dashboard_stats(request):
             for b in es_resp["aggregations"]["timeline"]["buckets"]
         ]
     except Exception as e:
+        # Log the error for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Elasticsearch query failed: {type(e).__name__}: {e}", exc_info=True)
+        
         # Fallback to ORM if ES is unavailable
         from django.db.models import F
 

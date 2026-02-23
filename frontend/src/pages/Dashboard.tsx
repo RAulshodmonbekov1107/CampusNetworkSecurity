@@ -12,18 +12,7 @@ import {
   HealthAndSafety as HealthIcon,
 } from '@mui/icons-material';
 import { Line, Doughnut } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler,
-} from 'chart.js';
+import '../config/chartjs'; // Register Chart.js components
 import { motion } from 'framer-motion';
 import { dashboardService } from '../services/api';
 import { DashboardStats } from '../types';
@@ -31,18 +20,7 @@ import { useTranslation } from 'react-i18next';
 import StatCard from '../components/common/StatCard';
 import GlassCard from '../components/common/GlassCard';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-);
+import NetworkFlowAnimation from '../components/dashboard/NetworkFlowAnimation';
 
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -51,7 +29,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     loadStats();
-    const interval = setInterval(loadStats, 30000); // Refresh every 30 seconds
+    const interval = setInterval(loadStats, 5000); // Refresh every 5 seconds for live updates
     return () => clearInterval(interval);
   }, []);
 
@@ -239,12 +217,7 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-    >
-      <Box>
+    <Box>
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -270,6 +243,28 @@ const Dashboard: React.FC = () => {
           ))}
         </Grid>
 
+        {/* Live Network Flow Animation */}
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          <Grid item xs={12}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.6 }}
+            >
+              <GlassCard glowColor="#00bcd4">
+                <CardContent>
+                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                    Live Network Traffic Flow
+                  </Typography>
+                  <Box sx={{ height: 450 }}>
+                    <NetworkFlowAnimation />
+                  </Box>
+                </CardContent>
+              </GlassCard>
+            </motion.div>
+          </Grid>
+        </Grid>
+
         <Grid container spacing={3}>
           <Grid item xs={12} md={8}>
             <motion.div
@@ -283,7 +278,7 @@ const Dashboard: React.FC = () => {
                     {t('dashboard.trafficTimeline')}
                   </Typography>
                   <Box sx={{ height: 300 }}>
-                    <Line data={trafficData} options={chartOptions} />
+                    <Line key="traffic-timeline" data={trafficData} options={chartOptions} />
                   </Box>
                 </CardContent>
               </GlassCard>
@@ -302,7 +297,7 @@ const Dashboard: React.FC = () => {
                     {t('dashboard.alertDistribution')}
                   </Typography>
                   <Box sx={{ height: 250 }}>
-                    <Doughnut data={alertDistributionData} options={doughnutOptions} />
+                    <Doughnut key="alert-distribution" data={alertDistributionData} options={doughnutOptions} />
                   </Box>
                 </CardContent>
               </GlassCard>
@@ -452,8 +447,7 @@ const Dashboard: React.FC = () => {
             </motion.div>
           </Grid>
         </Grid>
-      </Box>
-    </motion.div>
+    </Box>
   );
 };
 

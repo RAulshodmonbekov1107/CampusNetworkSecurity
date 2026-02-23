@@ -67,6 +67,8 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
           transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           overflowX: 'hidden',
           backdropFilter: 'blur(10px)',
+          position: 'relative',
+          zIndex: 1200, // Ensure sidebar is always above content
         },
       }}
     >
@@ -141,10 +143,14 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
                 <motion.div
                   whileHover={{ x: 5 }}
                   whileTap={{ scale: 0.95 }}
-                  style={{ width: '100%' }}
+                  style={{ width: '100%', pointerEvents: 'auto' }}
                 >
                   <ListItemButton
-                    onClick={() => navigate(item.path)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      navigate(item.path);
+                    }}
                     sx={{
                       borderRadius: 2,
                       bgcolor: isActive ? 'primary.main' : 'transparent',

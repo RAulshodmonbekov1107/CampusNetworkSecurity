@@ -20,6 +20,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { Doughnut } from 'react-chartjs-2';
+import '../config/chartjs'; // Register Chart.js components
 import { motion } from 'framer-motion';
 import { networkService } from '../services/api';
 import { NetworkTraffic as NetworkTrafficType } from '../types';
@@ -55,6 +56,9 @@ const NetworkTraffic: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    // Auto-refresh every 10 seconds for live updates
+    const interval = setInterval(loadData, 10000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
@@ -347,7 +351,7 @@ const NetworkTraffic: React.FC = () => {
                     </Typography>
                     {protocols.length > 0 ? (
                       <Box sx={{ height: 300 }}>
-                        <Doughnut data={protocolData} options={chartOptions} />
+                        <Doughnut key="protocol-distribution" data={protocolData} options={chartOptions} />
                       </Box>
                     ) : (
                       <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>

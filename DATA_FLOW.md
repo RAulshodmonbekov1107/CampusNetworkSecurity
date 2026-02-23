@@ -189,3 +189,5 @@ Since you have 430 events in Elasticsearch, the dashboard should show data. If i
 
 The connection chain is: **Logstash → Elasticsearch → Django API → React Frontend**
 
+
+

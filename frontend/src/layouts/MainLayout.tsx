@@ -22,14 +22,16 @@ const MainLayout: React.FC = () => {
         }}
       >
         <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          style={{ flexGrow: 1, padding: '24px' }}
+        <Box
+          sx={{
+            flexGrow: 1,
+            padding: '24px',
+            position: 'relative',
+            zIndex: 1,
+          }}
         >
           <Outlet />
-        </motion.div>
+        </Box>
       </Box>
     </Box>
   );

@@ -1,10 +1,25 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { User, SecurityAlert, ThreatIntelligence, DashboardStats } from '../types';
 
-const API_BASE_URL =
-  process.env.REACT_APP_API_URL ||
-  process.env.REACT_APP_API_BASE ||
-  'http://localhost:8000/api';
+const API_BASE_URL = (() => {
+  const envUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE;
+  if (!envUrl) return '/api';
+
+  try {
+    // If envUrl is absolute, only use it when it matches the current page host.
+    const parsed = new URL(envUrl);
+    if (typeof window !== 'undefined') {
+      if (parsed.hostname === window.location.hostname) return envUrl;
+      // hostname differs — avoid using a baked absolute URL pointing to another host
+      // so the dev proxy or same-origin `/api` is used instead.
+      return '/api';
+    }
+    return envUrl;
+  } catch (e) {
+    // envUrl is likely a relative path already (e.g. '/api') — use as-is
+    return envUrl;
+  }
+})();
 
 class ApiService {
   private api: AxiosInstance;

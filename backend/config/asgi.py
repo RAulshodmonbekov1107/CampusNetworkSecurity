@@ -22,3 +22,10 @@ application = ProtocolTypeRouter({
     ),
 })
 
+# Start the Kafka -> WebSocket bridge in a background thread so that
+# high-severity Suricata alerts are pushed in real time.
+try:
+    from apps.dashboard.consumers import start_kafka_alert_bridge
+    start_kafka_alert_bridge()
+except Exception:
+    pass

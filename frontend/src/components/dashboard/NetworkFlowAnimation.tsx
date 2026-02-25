@@ -1,449 +1,199 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
-interface NetworkNode {
+const MONO = '"JetBrains Mono", monospace';
+
+interface TopoNode {
   id: string;
   x: number;
   y: number;
   label: string;
-  type: 'server' | 'client' | 'router' | 'external' | 'firewall';
-  color: string;
-  glowColor: string;
-  connections: number;
+  type: 'core' | 'server' | 'endpoint' | 'external';
 }
 
-interface Connection {
-  id: string;
+interface TopoLink {
   from: string;
   to: string;
-  active: boolean;
   protocol: string;
-  color: string;
-  bandwidth: number;
-  latency: number;
+  active: boolean;
 }
 
 interface Packet {
   id: string;
-  connectionId: string;
+  linkIdx: number;
   progress: number;
-  color: string;
-  size: number;
-  timestamp: number;
 }
 
+const NODES: TopoNode[] = [
+  { id: 'inet', x: 8, y: 50, label: 'WAN', type: 'external' },
+  { id: 'fw', x: 25, y: 50, label: 'FW-01', type: 'core' },
+  { id: 'core', x: 45, y: 50, label: 'CORE-SW', type: 'core' },
+  { id: 'web', x: 65, y: 22, label: 'WEB-01', type: 'server' },
+  { id: 'db', x: 65, y: 50, label: 'DB-01', type: 'server' },
+  { id: 'app', x: 65, y: 78, label: 'APP-01', type: 'server' },
+  { id: 'c1', x: 85, y: 15, label: '10.0.1.11', type: 'endpoint' },
+  { id: 'c2', x: 85, y: 40, label: '10.0.1.22', type: 'endpoint' },
+  { id: 'c3', x: 85, y: 65, label: '10.0.1.33', type: 'endpoint' },
+  { id: 'c4', x: 85, y: 88, label: '10.0.1.44', type: 'endpoint' },
+];
+
+const LINKS: TopoLink[] = [
+  { from: 'inet', to: 'fw', protocol: 'HTTPS', active: true },
+  { from: 'fw', to: 'core', protocol: 'TCP', active: true },
+  { from: 'core', to: 'web', protocol: 'HTTP', active: true },
+  { from: 'core', to: 'db', protocol: 'PgSQL', active: true },
+  { from: 'core', to: 'app', protocol: 'gRPC', active: true },
+  { from: 'web', to: 'c1', protocol: 'HTTP', active: true },
+  { from: 'web', to: 'c2', protocol: 'WSS', active: true },
+  { from: 'app', to: 'c3', protocol: 'TCP', active: true },
+  { from: 'app', to: 'c4', protocol: 'SSH', active: true },
+  { from: 'web', to: 'db', protocol: 'SQL', active: true },
+];
+
+const nodeColor = (type: TopoNode['type']) => {
+  switch (type) {
+    case 'external': return '#6366f1';
+    case 'core': return '#3b82f6';
+    case 'server': return '#22c55e';
+    case 'endpoint': return '#64748b';
+  }
+};
+
+const getPos = (id: string) => NODES.find((n) => n.id === id) || { x: 0, y: 0 };
+
 const NetworkFlowAnimation: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [packets, setPackets] = useState<Packet[]>([]);
-  const [connections, setConnections] = useState<Connection[]>([]);
-  const [nodes, setNodes] = useState<NetworkNode[]>([]);
-  const [stats, setStats] = useState({
-    totalPackets: 0,
-    activeConnections: 0,
-    bandwidth: 0,
-  });
-
-  // Professional network topology
-  const initializeTopology = () => {
-    const newNodes: NetworkNode[] = [
-      { id: 'firewall', x: 15, y: 50, label: 'Firewall', type: 'firewall', color: '#f44336', glowColor: '#ff5252', connections: 0 },
-      { id: 'router', x: 35, y: 50, label: 'Core Router', type: 'router', color: '#ff9800', glowColor: '#ffb74d', connections: 0 },
-      { id: 'server1', x: 55, y: 25, label: 'Web Server', type: 'server', color: '#00bcd4', glowColor: '#4dd0e1', connections: 0 },
-      { id: 'server2', x: 55, y: 50, label: 'DB Server', type: 'server', color: '#8b5cf6', glowColor: '#b388ff', connections: 0 },
-      { id: 'server3', x: 55, y: 75, label: 'App Server', type: 'server', color: '#4caf50', glowColor: '#81c784', connections: 0 },
-      { id: 'client1', x: 75, y: 20, label: '192.168.1.10', type: 'client', color: '#2196f3', glowColor: '#64b5f6', connections: 0 },
-      { id: 'client2', x: 75, y: 40, label: '192.168.1.20', type: 'client', color: '#2196f3', glowColor: '#64b5f6', connections: 0 },
-      { id: 'client3', x: 75, y: 60, label: '192.168.1.30', type: 'client', color: '#2196f3', glowColor: '#64b5f6', connections: 0 },
-      { id: 'client4', x: 75, y: 80, label: '192.168.1.40', type: 'client', color: '#2196f3', glowColor: '#64b5f6', connections: 0 },
-      { id: 'external', x: 5, y: 50, label: 'Internet', type: 'external', color: '#9c27b0', glowColor: '#ba68c8', connections: 0 },
-    ];
-
-    const newConnections: Connection[] = [
-      { id: 'conn1', from: 'external', to: 'firewall', active: true, protocol: 'HTTPS', color: '#4caf50', bandwidth: 1000, latency: 20 },
-      { id: 'conn2', from: 'firewall', to: 'router', active: true, protocol: 'TCP', color: '#00bcd4', bandwidth: 500, latency: 5 },
-      { id: 'conn3', from: 'router', to: 'server1', active: true, protocol: 'HTTP', color: '#00bcd4', bandwidth: 200, latency: 2 },
-      { id: 'conn4', from: 'router', to: 'server2', active: true, protocol: 'MySQL', color: '#8b5cf6', bandwidth: 150, latency: 1 },
-      { id: 'conn5', from: 'router', to: 'server3', active: true, protocol: 'HTTPS', color: '#4caf50', bandwidth: 300, latency: 3 },
-      { id: 'conn6', from: 'client1', to: 'router', active: true, protocol: 'HTTP', color: '#2196f3', bandwidth: 50, latency: 1 },
-      { id: 'conn7', from: 'client2', to: 'router', active: true, protocol: 'HTTPS', color: '#4caf50', bandwidth: 75, latency: 1 },
-      { id: 'conn8', from: 'client3', to: 'router', active: true, protocol: 'SSH', color: '#ff9800', bandwidth: 25, latency: 1 },
-      { id: 'conn9', from: 'client4', to: 'router', active: true, protocol: 'FTP', color: '#f44336', bandwidth: 100, latency: 2 },
-      { id: 'conn10', from: 'server1', to: 'server2', active: true, protocol: 'TCP', color: '#8b5cf6', bandwidth: 500, latency: 1 },
-    ];
-
-    setNodes(newNodes);
-    setConnections(newConnections);
-  };
+  const [connCount, setConnCount] = useState(0);
+  const [pktCount, setPktCount] = useState(0);
+  const frame = useRef(0);
 
   useEffect(() => {
-    initializeTopology();
-  }, []);
-
-  // Generate packets continuously with varying rates
-  useEffect(() => {
-    if (connections.length === 0) return;
-
-    const intervals: NodeJS.Timeout[] = [];
-
-    connections.forEach(conn => {
-      if (conn.active) {
-        const interval = setInterval(() => {
-          const packetSize = Math.random() * 1500 + 64; // 64-1564 bytes
-          const newPacket: Packet = {
-            id: `packet-${Date.now()}-${Math.random()}`,
-            connectionId: conn.id,
-            progress: 0,
-            color: conn.color,
-            size: packetSize,
-            timestamp: Date.now(),
-          };
-          setPackets(prev => [...prev, newPacket]);
-          setStats(prev => ({
-            ...prev,
-            totalPackets: prev.totalPackets + 1,
-            bandwidth: prev.bandwidth + packetSize,
-          }));
-        }, 300 + Math.random() * 700); // Varying intervals
-
-        intervals.push(interval);
-      }
+    const intervals = LINKS.map((_, idx) => {
+      return setInterval(() => {
+        setPackets((prev) => [
+          ...prev,
+          { id: `p-${Date.now()}-${Math.random()}`, linkIdx: idx, progress: 0 },
+        ]);
+        setPktCount((c) => c + 1);
+      }, 600 + Math.random() * 800);
     });
-
+    setConnCount(LINKS.filter((l) => l.active).length);
     return () => intervals.forEach(clearInterval);
-  }, [connections]);
-
-  // Animate packets
-  useEffect(() => {
-    const animationInterval = setInterval(() => {
-      setPackets(prev => {
-        return prev
-          .map(packet => ({
-            ...packet,
-            progress: packet.progress + 0.04, // Smooth movement
-          }))
-          .filter(packet => packet.progress < 1.1);
-      });
-    }, 16); // 60fps
-
-    return () => clearInterval(animationInterval);
   }, []);
 
-  // Update stats
   useEffect(() => {
-    const activeConn = connections.filter(c => c.active).length;
-    setStats(prev => ({
-      ...prev,
-      activeConnections: activeConn,
-    }));
-  }, [connections]);
-
-  const getNodePosition = (nodeId: string) => {
-    const node = nodes.find(n => n.id === nodeId);
-    return node ? { x: node.x, y: node.y } : { x: 0, y: 0 };
-  };
-
-  const getPacketPosition = (packet: Packet) => {
-    const conn = connections.find(c => c.id === packet.connectionId);
-    if (!conn) return { x: 0, y: 0 };
-    
-    const from = getNodePosition(conn.from);
-    const to = getNodePosition(conn.to);
-    
-    // Bezier curve for smooth path
-    const t = packet.progress;
-    const controlX = (from.x + to.x) / 2;
-    const controlY = (from.y + to.y) / 2 - 5 * Math.sin(t * Math.PI);
-    
-    const x = (1 - t) * (1 - t) * from.x + 2 * (1 - t) * t * controlX + t * t * to.x;
-    const y = (1 - t) * (1 - t) * from.y + 2 * (1 - t) * t * controlY + t * t * to.y;
-    
-    return { x, y };
-  };
-
-  const formatBytes = (bytes: number) => {
-    if (bytes < 1024) return bytes.toFixed(0) + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  };
+    const raf = () => {
+      setPackets((prev) =>
+        prev.map((p) => ({ ...p, progress: p.progress + 0.025 })).filter((p) => p.progress < 1.05)
+      );
+      frame.current = requestAnimationFrame(raf);
+    };
+    frame.current = requestAnimationFrame(raf);
+    return () => cancelAnimationFrame(frame.current);
+  }, []);
 
   return (
-    <Box
-      ref={containerRef}
-      sx={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        minHeight: '500px',
-        background: 'radial-gradient(ellipse at center, rgba(15, 20, 40, 0.95) 0%, rgba(5, 10, 25, 1) 100%)',
-        borderRadius: 3,
-        overflow: 'hidden',
-        border: '1px solid rgba(0, 188, 212, 0.3)',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), inset 0 0 100px rgba(0, 188, 212, 0.1)',
-      }}
-    >
-      {/* Animated background grid */}
-      <Box
-        sx={{
-          position: 'absolute',
-          width: '100%',
-          height: '100%',
-          backgroundImage: `
-            linear-gradient(rgba(0, 188, 212, 0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 188, 212, 0.03) 1px, transparent 1px)
-          `,
-          backgroundSize: '50px 50px',
-          animation: 'gridMove 20s linear infinite',
-          '@keyframes gridMove': {
-            '0%': { transform: 'translate(0, 0)' },
-            '100%': { transform: 'translate(50px, 50px)' },
-          },
+    <Box sx={{
+      position: 'relative', width: '100%', height: '100%',
+      background: '#020617',
+      borderRadius: '6px',
+      overflow: 'hidden',
+      border: '0.5px solid rgba(148,163,184,0.06)',
+    }}>
+      {/* Scanning grid */}
+      <Box sx={{
+        position: 'absolute', inset: 0,
+        backgroundImage: `
+          linear-gradient(rgba(148,163,184,0.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(148,163,184,0.025) 1px, transparent 1px)
+        `,
+        backgroundSize: '20px 20px',
+      }} />
+      {/* Horizontal scan line */}
+      <motion.div
+        style={{
+          position: 'absolute', left: 0, right: 0, height: 1,
+          background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.12), transparent)',
         }}
+        animate={{ top: ['0%', '100%'] }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
       />
 
-      <svg
-        width="100%"
-        height="100%"
-        style={{ position: 'absolute', top: 0, left: 0, zIndex: 1, pointerEvents: 'none' }}
-        viewBox="0 0 100 100"
-        preserveAspectRatio="xMidYMid meet"
-      >
-        <defs>
-          {/* Glow filters */}
-          <filter id="nodeGlow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="0.5" result="coloredBlur"/>
-            <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-          <filter id="packetGlow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="0.3" result="coloredBlur"/>
-            <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-          <filter id="connectionGlow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="0.2" result="coloredBlur"/>
-            <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-          
-          {/* Gradients */}
-          {nodes.map(node => (
-            <linearGradient key={`grad-${node.id}`} id={`grad-${node.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor={node.color} stopOpacity="1" />
-              <stop offset="100%" stopColor={node.glowColor} stopOpacity="0.8" />
-            </linearGradient>
-          ))}
-        </defs>
-
-        {/* Connection lines with animated flow */}
-        {connections.map(conn => {
-          const from = getNodePosition(conn.from);
-          const to = getNodePosition(conn.to);
-          
+      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+        {/* Links */}
+        {LINKS.map((link, idx) => {
+          const from = getPos(link.from);
+          const to = getPos(link.to);
           return (
-            <g key={conn.id}>
-              {/* Base line */}
-              <line
-                x1={from.x}
-                y1={from.y}
-                x2={to.x}
-                y2={to.y}
-                stroke="rgba(255, 255, 255, 0.1)"
-                strokeWidth="0.2"
-              />
-              {/* Animated flow line */}
-              <motion.line
-                x1={from.x}
-                y1={from.y}
-                x2={to.x}
-                y2={to.y}
-                stroke={conn.color}
-                strokeWidth="0.15"
-                opacity={conn.active ? 0.6 : 0.2}
-                filter="url(#connectionGlow)"
-                strokeDasharray="1,0.5"
-                initial={{ pathLength: 0, opacity: 0 }}
-                animate={{
-                  pathLength: [0, 1, 0],
-                  opacity: conn.active ? [0.3, 0.8, 0.3] : 0.1,
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "linear",
-                }}
-              />
+            <line
+              key={idx}
+              x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+              stroke="rgba(148,163,184,0.08)"
+              strokeWidth="0.3"
+              strokeDasharray="1,1"
+            />
+          );
+        })}
+
+        {/* Packets */}
+        {packets.map((pkt) => {
+          const link = LINKS[pkt.linkIdx];
+          if (!link) return null;
+          const from = getPos(link.from);
+          const to = getPos(link.to);
+          const t = pkt.progress;
+          const x = from.x + (to.x - from.x) * t;
+          const y = from.y + (to.y - from.y) * t;
+          const col = link.active ? '#3b82f6' : '#475569';
+          return (
+            <circle key={pkt.id} cx={x} cy={y} r="0.5" fill={col} opacity={Math.min(1, 4 * t * (1 - t))} />
+          );
+        })}
+
+        {/* Nodes */}
+        {NODES.map((node) => {
+          const c = nodeColor(node.type);
+          return (
+            <g key={node.id}>
+              <circle cx={node.x} cy={node.y} r="2" fill="#0f172a" stroke={c} strokeWidth="0.4" opacity={0.9} />
+              <circle cx={node.x} cy={node.y} r="0.8" fill={c} opacity={0.7} />
+              <text
+                x={node.x} y={node.y - 3.5}
+                textAnchor="middle" fontSize="1.8" fill="#64748b"
+                fontFamily="'JetBrains Mono', monospace" fontWeight="500"
+              >
+                {node.label}
+              </text>
             </g>
           );
         })}
-
-        {/* Animated packets */}
-        {packets.map(packet => {
-          const pos = getPacketPosition(packet);
-          const size = Math.max(0.4, Math.min(1.2, packet.size / 1000));
-          
-          return (
-            <motion.circle
-              key={packet.id}
-              cx={pos.x}
-              cy={pos.y}
-              r={size}
-              fill={packet.color}
-              filter="url(#packetGlow)"
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{
-                opacity: [0, 1, 1, 0.7, 0],
-                scale: [0, size * 1.5, size, size * 0.8, 0],
-              }}
-              exit={{ opacity: 0, scale: 0 }}
-              transition={{
-                opacity: { duration: 0.2 },
-                scale: { duration: 0.2 },
-              }}
-            />
-          );
-        })}
-
-        {/* Network nodes with professional styling */}
-        {nodes.map(node => (
-          <g key={node.id}>
-            {/* Outer glow ring */}
-            <motion.circle
-              cx={node.x}
-              cy={node.y}
-              r="3.5"
-              fill="none"
-              stroke={node.glowColor}
-              strokeWidth="0.2"
-              opacity="0.4"
-              filter="url(#nodeGlow)"
-              animate={{
-                scale: [1, 1.3, 1],
-                opacity: [0.4, 0.6, 0.4],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-            />
-            {/* Main node */}
-            <motion.circle
-              cx={node.x}
-              cy={node.y}
-              r="2.5"
-              fill={`url(#grad-${node.id})`}
-              filter="url(#nodeGlow)"
-              initial={{ scale: 0 }}
-              animate={{
-                scale: [1, 1.1, 1],
-              }}
-              transition={{
-                scale: {
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                },
-              }}
-            />
-            {/* Inner highlight */}
-            <circle
-              cx={node.x - 0.5}
-              cy={node.y - 0.5}
-              r="0.8"
-              fill="rgba(255, 255, 255, 0.6)"
-              opacity="0.5"
-            />
-            {/* Node label with background */}
-            <rect
-              x={node.x - 6}
-              y={node.y - 6.5}
-              width="12"
-              height="3"
-              fill="rgba(0, 0, 0, 0.7)"
-              rx="0.5"
-              opacity="0.8"
-            />
-            <text
-              x={node.x}
-              y={node.y - 5}
-              fontSize="2"
-              fill="#ffffff"
-              textAnchor="middle"
-              fontWeight="500"
-              style={{ pointerEvents: 'none', textShadow: '0 0 4px rgba(0,0,0,0.8)' }}
-            >
-              {node.label}
-            </text>
-          </g>
-        ))}
       </svg>
 
-      {/* Professional stats overlay */}
-      <Box
-        sx={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background: 'linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.7) 50%, transparent 100%)',
-          padding: '16px 20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          zIndex: 10,
-        }}
-      >
-        <Box sx={{ display: 'flex', gap: 4 }}>
-          <Box>
-            <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.7rem' }}>
-              Active Connections
-            </Typography>
-            <Typography variant="h6" sx={{ color: '#00bcd4', fontWeight: 600, fontSize: '1.1rem' }}>
-              {stats.activeConnections}
-            </Typography>
-          </Box>
-          <Box>
-            <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.7rem' }}>
-              Packets Transmitted
-            </Typography>
-            <Typography variant="h6" sx={{ color: '#4caf50', fontWeight: 600, fontSize: '1.1rem' }}>
-              {stats.totalPackets.toLocaleString()}
-            </Typography>
-          </Box>
-          <Box>
-            <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.7rem' }}>
-              Total Bandwidth
-            </Typography>
-            <Typography variant="h6" sx={{ color: '#ff9800', fontWeight: 600, fontSize: '1.1rem' }}>
-              {formatBytes(stats.bandwidth)}
-            </Typography>
-          </Box>
+      {/* Stats bar */}
+      <Box sx={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        px: 1.5, py: 0.75,
+        background: 'linear-gradient(to top, rgba(2,6,23,0.95), transparent)',
+        zIndex: 2,
+      }}>
+        <Box sx={{ display: 'flex', gap: 3 }}>
+          {[
+            { label: 'LINKS', value: connCount, color: '#3b82f6' },
+            { label: 'PKTS', value: pktCount, color: '#22c55e' },
+          ].map((s) => (
+            <Box key={s.label}>
+              <Typography sx={{ fontFamily: MONO, fontSize: '0.5625rem', color: '#334155', letterSpacing: '0.06em' }}>{s.label}</Typography>
+              <Typography sx={{ fontFamily: MONO, fontSize: '0.75rem', color: s.color, fontWeight: 600, lineHeight: 1 }}>{s.value}</Typography>
+            </Box>
+          ))}
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <motion.div
-            animate={{ scale: [1, 1.2, 1] }}
-            transition={{ duration: 1, repeat: Infinity }}
-          >
-            <Box
-              sx={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: '#4caf50',
-                boxShadow: '0 0 10px rgba(76, 175, 80, 0.8)',
-              }}
-            />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <motion.div animate={{ scale: [1, 1.02, 1] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}>
+            <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: '#22c55e' }} />
           </motion.div>
-          <Typography variant="body2" sx={{ color: '#4caf50', fontWeight: 500 }}>
-            LIVE
-          </Typography>
+          <Typography sx={{ fontFamily: MONO, fontSize: '0.5625rem', color: '#22c55e', fontWeight: 600 }}>LIVE</Typography>
         </Box>
       </Box>
     </Box>

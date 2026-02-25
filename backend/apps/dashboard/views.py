@@ -165,11 +165,6 @@ def dashboard_stats(request):
         )
         total_traffic_24h = orm_agg["total_bytes"] or 0
 
-        active_connections = NetworkTraffic.objects.filter(
-            timestamp__gte=now - timedelta(minutes=5),
-            connection_state="ESTABLISHED",
-        ).count()
-
         for i in range(24):
             hour_start = last_24h + timedelta(hours=i)
             hour_end = hour_start + timedelta(hours=1)
@@ -198,6 +193,13 @@ def dashboard_stats(request):
             )
             .order_by("-count")[:5]
         )
+
+    # Always compute active connections from the database so the metric
+    # is accurate even when Elasticsearch is available.
+    active_connections = NetworkTraffic.objects.filter(
+        timestamp__gte=now - timedelta(minutes=5),
+        connection_state="ESTABLISHED",
+    ).count()
 
     # Alerts via ORM for now (they may also be populated from Kafka consumer)
     alerts_count = SecurityAlert.objects.filter(timestamp__gte=last_24h).count()

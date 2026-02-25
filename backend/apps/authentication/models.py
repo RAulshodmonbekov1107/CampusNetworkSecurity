@@ -28,11 +28,17 @@ class User(AbstractUser):
     
     @property
     def is_admin(self):
-        return self.role == 'admin'
-    
+        return self.role == 'admin' or self.is_superuser
+
     @property
     def is_analyst(self):
-        return self.role == 'analyst'
+        return self.role in ('admin', 'analyst') or self.is_superuser
+
+    def save(self, *args, **kwargs):
+        # Django superusers always get the admin role automatically
+        if self.is_superuser and self.role != 'admin':
+            self.role = 'admin'
+        super().save(*args, **kwargs)
 
 
 class AuditLog(models.Model):

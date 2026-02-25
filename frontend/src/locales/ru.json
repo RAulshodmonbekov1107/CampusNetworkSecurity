@@ -17,7 +17,12 @@
     "delete": "Удалить",
     "edit": "Редактировать",
     "view": "Просмотр",
-    "close": "Закрыть"
+    "close": "Закрыть",
+    "clear": "Очистить",
+    "loading": "Загрузка...",
+    "noData": "Нет данных",
+    "accessDenied": "Доступ запрещён",
+    "accessDeniedDesc": "У вас нет прав для доступа к этой странице."
   },
   "auth": {
     "username": "Имя пользователя",
@@ -26,7 +31,9 @@
     "rememberMe": "Запомнить меня",
     "forgotPassword": "Забыли пароль?",
     "loginTitle": "Добро пожаловать",
-    "loginSubtitle": "Войдите, чтобы продолжить"
+    "loginSubtitle": "Войдите, чтобы продолжить работу с Campus Security Monitor",
+    "registerTitle": "Создать аккаунт",
+    "registerSubtitle": "Зарегистрируйтесь для доступа к панели безопасности"
   },
   "dashboard": {
     "title": "Панель управления",
@@ -37,7 +44,74 @@
     "trafficTimeline": "График трафика (24ч)",
     "alertDistribution": "Распределение оповещений",
     "topSourceIPs": "Топ 5 IP-адресов",
-    "recentAlerts": "Последние оповещения"
+    "recentAlerts": "Последние оповещения",
+    "protocolDistribution": "Распределение протоколов",
+    "liveNetworkFlow": "Потоки сети в реальном времени"
+  },
+  "network": {
+    "title": "Сетевой трафик",
+    "trafficOverTime": "Трафик по времени",
+    "protocolDistribution": "Распределение протоколов",
+    "trafficData": "Данные сетевого трафика",
+    "sourceIP": "IP-адрес источника",
+    "destinationIP": "IP-адрес назначения",
+    "protocol": "Протокол",
+    "bytesSent": "Отправлено байт",
+    "bytesReceived": "Получено байт",
+    "total": "Всего",
+    "reputation": "Репутация",
+    "country": "Страна",
+    "timestamp": "Время"
+  },
+  "alerts": {
+    "title": "Оповещения безопасности",
+    "severity": "Серьёзность",
+    "status": "Статус",
+    "type": "Тип",
+    "actions": "Действия",
+    "acknowledge": "Подтвердить",
+    "resolve": "Разрешить",
+    "details": "Детали оповещения",
+    "resolutionNotes": "Примечания",
+    "clearFilters": "Очистить фильтры",
+    "signature": "Сигнатура"
+  },
+  "threats": {
+    "title": "Разведка угроз",
+    "searchPlaceholder": "Поиск по IP, домену, хешу или email",
+    "iocType": "Тип IOC",
+    "iocValue": "Значение IOC",
+    "threatType": "Тип угрозы",
+    "reputationScore": "Рейтинг репутации",
+    "source": "Источник",
+    "firstSeen": "Впервые замечен",
+    "lastSeen": "Последний раз",
+    "country": "Страна"
+  },
+  "settings": {
+    "title": "Настройки",
+    "profileSettings": "Настройки профиля",
+    "preferences": "Параметры",
+    "darkMode": "Тёмная тема",
+    "language": "Язык",
+    "notifications": "Уведомления",
+    "emailNotifications": "Email уведомления",
+    "alertNotifications": "Оповещения",
+    "systemUpdates": "Обновления системы",
+    "systemConfig": "Конфигурация системы",
+    "saveProfile": "Сохранить профиль",
+    "saveConfig": "Сохранить конфигурацию"
+  },
+  "users": {
+    "title": "Управление пользователями",
+    "addUser": "Добавить пользователя",
+    "username": "Имя пользователя",
+    "email": "Email",
+    "role": "Роль",
+    "status": "Статус",
+    "created": "Создан",
+    "actions": "Действия",
+    "active": "Активный",
+    "inactive": "Неактивный"
   }
 }
-

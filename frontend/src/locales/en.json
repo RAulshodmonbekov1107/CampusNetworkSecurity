@@ -17,7 +17,12 @@
     "delete": "Delete",
     "edit": "Edit",
     "view": "View",
-    "close": "Close"
+    "close": "Close",
+    "clear": "Clear",
+    "loading": "Loading...",
+    "noData": "No data available",
+    "accessDenied": "Access Denied",
+    "accessDeniedDesc": "You do not have permission to access this page."
   },
   "auth": {
     "username": "Username",
@@ -26,7 +31,9 @@
     "rememberMe": "Remember me",
     "forgotPassword": "Forgot password?",
     "loginTitle": "Welcome Back",
-    "loginSubtitle": "Sign in to continue to Campus Security Monitor"
+    "loginSubtitle": "Sign in to continue to Campus Security Monitor",
+    "registerTitle": "Create Account",
+    "registerSubtitle": "Register to access the security dashboard"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -37,7 +44,74 @@
     "trafficTimeline": "Traffic Timeline (24h)",
     "alertDistribution": "Alert Distribution",
     "topSourceIPs": "Top 5 Source IPs",
-    "recentAlerts": "Recent Security Alerts"
+    "recentAlerts": "Recent Security Alerts",
+    "protocolDistribution": "Protocol Distribution",
+    "liveNetworkFlow": "Live Network Flow"
+  },
+  "network": {
+    "title": "Network Traffic",
+    "trafficOverTime": "Traffic Over Time",
+    "protocolDistribution": "Protocol Distribution",
+    "trafficData": "Network Traffic Data",
+    "sourceIP": "Source IP",
+    "destinationIP": "Destination IP",
+    "protocol": "Protocol",
+    "bytesSent": "Bytes Sent",
+    "bytesReceived": "Bytes Received",
+    "total": "Total",
+    "reputation": "Reputation",
+    "country": "Country",
+    "timestamp": "Timestamp"
+  },
+  "alerts": {
+    "title": "Security Alerts",
+    "severity": "Severity",
+    "status": "Status",
+    "type": "Type",
+    "actions": "Actions",
+    "acknowledge": "Acknowledge",
+    "resolve": "Resolve",
+    "details": "Alert Details",
+    "resolutionNotes": "Resolution Notes",
+    "clearFilters": "Clear Filters",
+    "signature": "Signature"
+  },
+  "threats": {
+    "title": "Threat Intelligence",
+    "searchPlaceholder": "Search by IP, Domain, Hash, or Email",
+    "iocType": "IOC Type",
+    "iocValue": "IOC Value",
+    "threatType": "Threat Type",
+    "reputationScore": "Reputation Score",
+    "source": "Source",
+    "firstSeen": "First Seen",
+    "lastSeen": "Last Seen",
+    "country": "Country"
+  },
+  "settings": {
+    "title": "Settings",
+    "profileSettings": "Profile Settings",
+    "preferences": "Preferences",
+    "darkMode": "Dark Mode",
+    "language": "Language",
+    "notifications": "Notifications",
+    "emailNotifications": "Email Notifications",
+    "alertNotifications": "Alert Notifications",
+    "systemUpdates": "System Updates",
+    "systemConfig": "System Configuration",
+    "saveProfile": "Save Profile",
+    "saveConfig": "Save Configuration"
+  },
+  "users": {
+    "title": "User Management",
+    "addUser": "Add User",
+    "username": "Username",
+    "email": "Email",
+    "role": "Role",
+    "status": "Status",
+    "created": "Created",
+    "actions": "Actions",
+    "active": "Active",
+    "inactive": "Inactive"
   }
 }
-

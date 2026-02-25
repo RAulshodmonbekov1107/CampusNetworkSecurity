@@ -1,13 +1,15 @@
-import React, { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import React, { Suspense, lazy, useCallback } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Box, CircularProgress } from '@mui/material';
+import { motion } from 'framer-motion';
+import { Toaster, toast } from 'sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import OfflineDetector from './components/common/OfflineDetector';
-import LoadingSkeleton from './components/common/LoadingSkeleton';
+import { useAlertWebSocket } from './hooks/useAlertWebSocket';
+import { RealtimeAlert } from './types';
 
 // Lazy load pages for better performance
 const Login = lazy(() => import('./pages/Login'));
@@ -42,183 +44,31 @@ const LoadingFallback: React.FC = () => (
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-
-  if (loading) {
-    return <LoadingFallback />;
-  }
-
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+  if (loading) return <LoadingFallback />;
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
-const pageVariants = {
-  initial: {
-    opacity: 0,
-    y: 20,
-  },
-  animate: {
-    opacity: 1,
-    y: 0,
-  },
-  exit: {
-    opacity: 0,
-    y: -20,
-  },
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, isAuthenticated, loading } = useAuth();
+  if (loading) return <LoadingFallback />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  const isAdmin = user?.role === 'admin' || user?.is_superuser === true;
+  if (!isAdmin) return <Navigate to="/" replace />;
+  return <>{children}</>;
 };
 
-const pageTransition = {
-  type: 'tween' as const,
-  ease: [0.4, 0, 0.2, 1] as [number, number, number, number],
-  duration: 0.4,
-};
-
-const AnimatedRoutes: React.FC = () => {
-  const location = useLocation();
-
-  return (
-    <AnimatePresence mode="wait" initial={false}>
-      <Routes location={location} key={location.pathname}>
-        <Route
-          path="/login"
-          element={
-            <Suspense fallback={<LoadingFallback />}>
-              <motion.div
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                variants={pageVariants}
-                transition={pageTransition}
-              >
-                <Login />
-              </motion.div>
-            </Suspense>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <Suspense fallback={<LoadingFallback />}>
-              <motion.div
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                variants={pageVariants}
-                transition={pageTransition}
-              >
-                <Register />
-              </motion.div>
-            </Suspense>
-          }
-        />
-        <Route
-          path="/"
-          element={
-            <PrivateRoute>
-              <Suspense fallback={<LoadingFallback />}>
-                <MainLayout />
-              </Suspense>
-            </PrivateRoute>
-          }
-        >
-          <Route
-            index
-            element={
-              <Suspense fallback={<LoadingSkeleton variant="stats" />}>
-                <motion.div
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  variants={pageVariants}
-                  transition={pageTransition}
-                >
-                  <Dashboard />
-                </motion.div>
-              </Suspense>
-            }
-          />
-          <Route
-            path="network"
-            element={
-              <Suspense fallback={<LoadingSkeleton variant="card" count={2} />}>
-                <motion.div
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  variants={pageVariants}
-                  transition={pageTransition}
-                >
-                  <NetworkTraffic />
-                </motion.div>
-              </Suspense>
-            }
-          />
-          <Route
-            path="alerts"
-            element={
-              <Suspense fallback={<LoadingSkeleton variant="list" count={5} />}>
-                <motion.div
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  variants={pageVariants}
-                  transition={pageTransition}
-                >
-                  <SecurityAlerts />
-                </motion.div>
-              </Suspense>
-            }
-          />
-          <Route
-            path="threats"
-            element={
-              <Suspense fallback={<LoadingSkeleton variant="card" count={2} />}>
-                <motion.div
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  variants={pageVariants}
-                  transition={pageTransition}
-                >
-                  <ThreatIntelligence />
-                </motion.div>
-              </Suspense>
-            }
-          />
-          <Route
-            path="settings"
-            element={
-              <Suspense fallback={<LoadingSkeleton variant="card" count={1} />}>
-                <motion.div
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  variants={pageVariants}
-                  transition={pageTransition}
-                >
-                  <Settings />
-                </motion.div>
-              </Suspense>
-            }
-          />
-          <Route
-            path="users"
-            element={
-              <Suspense fallback={<LoadingSkeleton variant="list" count={8} />}>
-                <motion.div
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  variants={pageVariants}
-                  transition={pageTransition}
-                >
-                  <UserManagement />
-                </motion.div>
-              </Suspense>
-            }
-          />
-        </Route>
-      </Routes>
-    </AnimatePresence>
-  );
+// Real-time alert bridge — lives inside AuthProvider so it has auth context
+const RealtimeAlertBridge: React.FC = () => {
+  const handleAlert = useCallback((alert: RealtimeAlert) => {
+    const msg = `${alert.title} — ${alert.source_ip}`;
+    if (alert.severity === 'critical') {
+      toast.error(msg, { description: alert.category, duration: 8000 });
+    } else {
+      toast.warning(msg, { description: alert.category, duration: 6000 });
+    }
+  }, []);
+  useAlertWebSocket(handleAlert);
+  return null;
 };
 
 const App: React.FC = () => {
@@ -228,7 +78,63 @@ const App: React.FC = () => {
         <AuthProvider>
           <ToastProvider>
             <OfflineDetector />
-            <AnimatedRoutes />
+            <RealtimeAlertBridge />
+            <Toaster
+              position="top-right"
+              richColors
+              toastOptions={{
+                style: {
+                  background: 'rgba(26, 31, 58, 0.95)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: '#fff',
+                },
+              }}
+            />
+            {/*
+              Simple flat Routes — NO key/AnimatePresence here.
+              Page transitions are handled inside MainLayout around <Outlet />.
+            */}
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+
+                {/* Protected layout — Outlet renders the active page */}
+                <Route
+                  path="/"
+                  element={
+                    <PrivateRoute>
+                      <MainLayout />
+                    </PrivateRoute>
+                  }
+                >
+                  <Route index element={<Dashboard />} />
+                  <Route path="network" element={<NetworkTraffic />} />
+                  <Route path="alerts" element={<SecurityAlerts />} />
+                  <Route path="threats" element={<ThreatIntelligence />} />
+                  <Route
+                    path="settings"
+                    element={
+                      <AdminRoute>
+                        <Settings />
+                      </AdminRoute>
+                    }
+                  />
+                  <Route
+                    path="users"
+                    element={
+                      <AdminRoute>
+                        <UserManagement />
+                      </AdminRoute>
+                    }
+                  />
+                </Route>
+
+                {/* Catch-all */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
           </ToastProvider>
         </AuthProvider>
       </ThemeProvider>
@@ -237,4 +143,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-

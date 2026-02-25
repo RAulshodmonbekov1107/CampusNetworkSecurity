@@ -1,52 +1,58 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Grid,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  CircularProgress,
+  Box, Typography, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  TextField, Button, FormControl, InputLabel, Select, MenuItem, CircularProgress, LinearProgress, Tooltip,
 } from '@mui/material';
-import { Doughnut } from 'react-chartjs-2';
-import '../config/chartjs'; // Register Chart.js components
-import { motion } from 'framer-motion';
-import { networkService } from '../services/api';
-import { NetworkTraffic as NetworkTrafficType } from '../types';
+import {
+  ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid,
+} from 'recharts';
+import { networkService, statsService } from '../services/api';
+import { NetworkTraffic as NetworkTrafficType, ProtocolStat, TrafficTimePoint } from '../types';
 import { useTranslation } from 'react-i18next';
+import GlassCard from '../components/common/GlassCard';
+import StaggerContainer from '../components/common/StaggerContainer';
+
+const MONO = '"JetBrains Mono", monospace';
+const PROTOCOL_COLORS = ['#3b82f6', '#6366f1', '#8b5cf6', '#2563eb', '#1d4ed8', '#4f46e5', '#7c3aed', '#60a5fa', '#818cf8', '#475569'];
+
+const FLAG_EMOJI: Record<string, string> = {
+  US: '\u{1F1FA}\u{1F1F8}', CN: '\u{1F1E8}\u{1F1F3}', RU: '\u{1F1F7}\u{1F1FA}',
+  DE: '\u{1F1E9}\u{1F1EA}', BR: '\u{1F1E7}\u{1F1F7}', IN: '\u{1F1EE}\u{1F1F3}',
+  KR: '\u{1F1F0}\u{1F1F7}', JP: '\u{1F1EF}\u{1F1F5}', GB: '\u{1F1EC}\u{1F1E7}',
+  FR: '\u{1F1EB}\u{1F1F7}', KG: '\u{1F1F0}\u{1F1EC}', KZ: '\u{1F1F0}\u{1F1FF}', TJ: '\u{1F1F9}\u{1F1EF}',
+};
+
+const getReputationColor = (score: number) => {
+  if (score >= 80) return '#ef4444';
+  if (score >= 60) return '#f59e0b';
+  if (score >= 40) return '#eab308';
+  return '#22c55e';
+};
+
+const tooltipStyle = {
+  background: '#0f172a', border: '0.5px solid rgba(148,163,184,0.12)', borderRadius: 6,
+  color: '#e2e8f0', fontSize: '0.75rem', fontFamily: MONO, boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+};
 
 const NetworkTraffic: React.FC = () => {
   const [traffic, setTraffic] = useState<NetworkTrafficType[]>([]);
-  const [protocols, setProtocols] = useState<any[]>([]);
+  const [protocols, setProtocols] = useState<ProtocolStat[]>([]);
+  const [trafficTimeline, setTrafficTimeline] = useState<TrafficTimePoint[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    protocol: '',
-    source_ip: '',
-    date_from: '',
-    date_to: '',
-  });
+  const [filters, setFilters] = useState({ protocol: '', source_ip: '', date_from: '', date_to: '' });
   const { t } = useTranslation();
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [trafficData, protocolsData] = await Promise.all([
+      const [trafficData, protocolData, timelineData] = await Promise.all([
         networkService.getTraffic(filters),
-        networkService.getProtocols(),
+        statsService.getProtocols().catch(() => []),
+        statsService.getTraffic().catch(() => []),
       ]);
       setTraffic(trafficData.results || trafficData);
-      setProtocols(protocolsData);
+      if (protocolData.length) setProtocols(protocolData);
+      if (timelineData.length) setTrafficTimeline(timelineData);
     } catch (error) {
       console.error('Failed to load network traffic:', error);
     } finally {
@@ -56,7 +62,6 @@ const NetworkTraffic: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    // Auto-refresh every 10 seconds for live updates
     const interval = setInterval(loadData, 10000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -67,408 +72,154 @@ const NetworkTraffic: React.FC = () => {
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];
   };
 
-  const protocolData = {
-    labels: protocols.map((p) => p.protocol),
-    datasets: [
-      {
-        data: protocols.map((p) => p.total_bytes),
-        backgroundColor: [
-          '#00bcd4',
-          '#8b5cf6',
-          '#ff9800',
-          '#4caf50',
-          '#f44336',
-          '#2196f3',
-        ],
-        borderWidth: 0,
-      },
-    ],
-  };
+  const timelineChartData = trafficTimeline.map((t) => {
+    const d = new Date(t.time);
+    return { time: d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), bytes: t.bytes };
+  });
 
-  const chartOptions = {
-    maintainAspectRatio: false,
-    animation: {
-      animateRotate: true,
-      duration: 2000,
-      easing: 'easeInOutQuart' as const,
-    },
-    plugins: {
-      legend: {
-        position: 'bottom' as const,
-        labels: {
-          color: '#ffffff',
-          padding: 15,
-          font: {
-            size: 12,
-          },
-        },
-      },
-      tooltip: {
-        backgroundColor: 'rgba(26, 31, 58, 0.9)',
-        titleColor: '#ffffff',
-        bodyColor: '#ffffff',
-        borderColor: '#00bcd4',
-        borderWidth: 1,
-        padding: 12,
-        cornerRadius: 8,
-      },
-    },
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-        ease: [0.4, 0, 0.2, 1] as [number, number, number, number],
-      },
-    },
-  };
-
-  const tableRowVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: (i: number) => ({
-      opacity: 1,
-      x: 0,
-      transition: {
-        delay: i * 0.05,
-        duration: 0.3,
-      },
-    }),
+  const inputSx = {
+    '& .MuiInputBase-root': { fontSize: '0.8125rem' },
+    '& .MuiInputLabel-root': { fontSize: '0.8125rem' },
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-    >
-      <Box>
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Typography variant="h4" sx={{ mb: 3, fontWeight: 600 }}>
-            {t('common.network')}
-          </Typography>
-        </motion.div>
+    <StaggerContainer>
+      <Typography variant="h4" sx={{ mb: 2, color: '#e2e8f0' }}>{t('common.network')}</Typography>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-        >
-          <Card
-            sx={{
-              mb: 3,
-              background: 'rgba(255, 255, 255, 0.05)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                borderColor: 'rgba(0, 188, 212, 0.3)',
-                boxShadow: '0 8px 24px rgba(0, 188, 212, 0.2)',
-              },
-            }}
-          >
-            <CardContent>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={3}>
-                  <FormControl fullWidth>
-                    <InputLabel>Protocol</InputLabel>
-                    <Select
-                      value={filters.protocol}
-                      onChange={(e) => setFilters({ ...filters, protocol: e.target.value })}
-                      sx={{
-                        transition: 'all 0.3s ease',
-                        '&:hover .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(0, 188, 212, 0.5)',
-                        },
-                      }}
-                    >
-                      <MenuItem value="">All</MenuItem>
-                      <MenuItem value="TCP">TCP</MenuItem>
-                      <MenuItem value="UDP">UDP</MenuItem>
-                      <MenuItem value="HTTP">HTTP</MenuItem>
-                      <MenuItem value="HTTPS">HTTPS</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} md={3}>
-                  <TextField
-                    fullWidth
-                    label="Source IP"
-                    value={filters.source_ip}
-                    onChange={(e) => setFilters({ ...filters, source_ip: e.target.value })}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        transition: 'all 0.3s ease',
-                        '&:hover .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(0, 188, 212, 0.5)',
-                        },
-                      },
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} md={2}>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    label="From"
-                    InputLabelProps={{ shrink: true }}
-                    value={filters.date_from}
-                    onChange={(e) => setFilters({ ...filters, date_from: e.target.value })}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        transition: 'all 0.3s ease',
-                        '&:hover .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(0, 188, 212, 0.5)',
-                        },
-                      },
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} md={2}>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    label="To"
-                    InputLabelProps={{ shrink: true }}
-                    value={filters.date_to}
-                    onChange={(e) => setFilters({ ...filters, date_to: e.target.value })}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        transition: 'all 0.3s ease',
-                        '&:hover .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(0, 188, 212, 0.5)',
-                        },
-                      },
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} md={2}>
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      onClick={() => setFilters({ protocol: '', source_ip: '', date_from: '', date_to: '' })}
-                      sx={{
-                        height: '56px',
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        transition: 'all 0.3s ease',
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, #5568d3 0%, #6a3d91 100%)',
-                          boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
-                        },
-                      }}
-                    >
-                      Clear
-                    </Button>
-                  </motion.div>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-        </motion.div>
+      {/* Filters */}
+      <GlassCard sx={{ mb: 1.5 }}>
+        <CardContent sx={{ p: '12px 16px !important' }}>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+            <FormControl size="small" sx={{ minWidth: 120, ...inputSx }}>
+              <InputLabel>Protocol</InputLabel>
+              <Select value={filters.protocol} label="Protocol" onChange={(e) => setFilters({ ...filters, protocol: e.target.value })}>
+                <MenuItem value="">All</MenuItem>
+                {['TCP', 'UDP', 'HTTP', 'HTTPS', 'DNS', 'SSH', 'ICMP'].map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <TextField size="small" label="Source IP" value={filters.source_ip} onChange={(e) => setFilters({ ...filters, source_ip: e.target.value })} sx={{ width: 160, ...inputSx }} />
+            <TextField size="small" type="date" label="From" InputLabelProps={{ shrink: true }} value={filters.date_from} onChange={(e) => setFilters({ ...filters, date_from: e.target.value })} sx={{ width: 140, ...inputSx }} />
+            <TextField size="small" type="date" label="To" InputLabelProps={{ shrink: true }} value={filters.date_to} onChange={(e) => setFilters({ ...filters, date_to: e.target.value })} sx={{ width: 140, ...inputSx }} />
+            <Button size="small" variant="outlined" onClick={() => setFilters({ protocol: '', source_ip: '', date_from: '', date_to: '' })}
+              sx={{ borderColor: 'rgba(148,163,184,0.12)', color: '#94a3b8', fontSize: '0.75rem', '&:hover': { borderColor: 'rgba(59,130,246,0.3)' } }}>
+              Clear
+            </Button>
+          </Box>
+        </CardContent>
+      </GlassCard>
 
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-        >
-          <Grid container spacing={3} sx={{ mb: 3 }}>
-            <Grid item xs={12} md={8}>
-              <motion.div variants={itemVariants}>
-                <Card
-                  sx={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      borderColor: 'rgba(0, 188, 212, 0.3)',
-                      boxShadow: '0 8px 24px rgba(0, 188, 212, 0.2)',
-                    },
-                  }}
-                >
-                  <CardContent>
-                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                      Traffic Over Time
-                    </Typography>
-                    {loading ? (
-                      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                        >
-                          <CircularProgress sx={{ color: '#00bcd4' }} />
-                        </motion.div>
-                      </Box>
-                    ) : (
-                      <Box sx={{ height: 300 }}>
-                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                          Chart will be displayed here
-                        </Typography>
-                      </Box>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <motion.div variants={itemVariants}>
-                <Card
-                  sx={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      borderColor: 'rgba(139, 92, 246, 0.3)',
-                      boxShadow: '0 8px 24px rgba(139, 92, 246, 0.2)',
-                    },
-                  }}
-                >
-                  <CardContent>
-                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                      Protocol Distribution
-                    </Typography>
-                    {protocols.length > 0 ? (
-                      <Box sx={{ height: 300 }}>
-                        <Doughnut key="protocol-distribution" data={protocolData} options={chartOptions} />
-                      </Box>
-                    ) : (
-                      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                        >
-                          <CircularProgress sx={{ color: '#8b5cf6' }} />
-                        </motion.div>
-                      </Box>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </Grid>
-          </Grid>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.6 }}
-        >
-          <Card
-            sx={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                borderColor: 'rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
-              },
-            }}
-          >
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                Network Traffic Data
-              </Typography>
-              {loading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                  >
-                    <CircularProgress sx={{ color: '#00bcd4' }} />
-                  </motion.div>
-                </Box>
+      {/* Charts */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 1.5, mb: 1.5 }}>
+        <GlassCard>
+          <CardContent sx={{ p: '16px !important' }}>
+            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#64748b', mb: 1 }}>Traffic Over Time</Typography>
+            <Box sx={{ height: 260 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={timelineChartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="netFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.15} />
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="rgba(148,163,184,0.04)" vertical={false} />
+                  <XAxis dataKey="time" stroke="#334155" fontSize={10} fontFamily={MONO} tickLine={false} axisLine={{ stroke: 'rgba(148,163,184,0.06)' }} />
+                  <YAxis stroke="#334155" fontSize={10} fontFamily={MONO} tickFormatter={(v: number) => formatBytes(v)} tickLine={false} axisLine={false} />
+                  <RTooltip contentStyle={tooltipStyle} formatter={(value: number) => [formatBytes(value), 'Traffic']} />
+                  <Area type="linear" dataKey="bytes" stroke="#3b82f6" fill="url(#netFill)" strokeWidth={1.5} dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Box>
+          </CardContent>
+        </GlassCard>
+        <GlassCard>
+          <CardContent sx={{ p: '16px !important' }}>
+            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#64748b', mb: 1 }}>Protocol Distribution</Typography>
+            <Box sx={{ height: 260 }}>
+              {protocols.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={protocols.map((p) => ({ name: p.protocol, value: p.total_bytes }))} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2} dataKey="value" stroke="none">
+                      {protocols.map((_, idx) => <Cell key={idx} fill={PROTOCOL_COLORS[idx % PROTOCOL_COLORS.length]} />)}
+                    </Pie>
+                    <RTooltip contentStyle={tooltipStyle} formatter={(v: number) => [formatBytes(v), '']} />
+                  </PieChart>
+                </ResponsiveContainer>
               ) : (
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 600 }}>Timestamp</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Source IP</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Destination IP</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Protocol</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Bytes Sent</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Bytes Received</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Total</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {traffic.slice(0, 20).map((item, index) => (
-                        <TableRow
-                          key={item.id}
-                          component={motion.tr}
-                          custom={index}
-                          variants={tableRowVariants}
-                          initial="hidden"
-                          animate="visible"
-                          whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}
-                          sx={{
-                            transition: 'background 0.2s',
-                            cursor: 'pointer',
-                            '&:hover': {
-                              backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                            },
-                          }}
-                        >
-                          <TableCell>{new Date(item.timestamp).toLocaleString()}</TableCell>
-                          <TableCell>{item.source_ip}</TableCell>
-                          <TableCell>{item.destination_ip}</TableCell>
-                          <TableCell>
-                            <Box
-                              component="span"
-                              sx={{
-                                px: 1,
-                                py: 0.5,
-                                borderRadius: 1,
-                                bgcolor: 'rgba(0, 188, 212, 0.2)',
-                                color: '#00bcd4',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                              }}
-                            >
-                              {item.protocol}
-                            </Box>
-                          </TableCell>
-                          <TableCell>{formatBytes(item.bytes_sent)}</TableCell>
-                          <TableCell>{formatBytes(item.bytes_received)}</TableCell>
-                          <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>
-                            {formatBytes(item.total_bytes || 0)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}><CircularProgress size={24} sx={{ color: '#3b82f6' }} /></Box>
               )}
-            </CardContent>
-          </Card>
-        </motion.div>
+            </Box>
+          </CardContent>
+        </GlassCard>
       </Box>
-    </motion.div>
+
+      {/* Traffic Table */}
+      <GlassCard>
+        <CardContent sx={{ p: '16px !important' }}>
+          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#64748b', mb: 1.5 }}>Network Traffic Data</Typography>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={24} sx={{ color: '#3b82f6' }} /></Box>
+          ) : (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    {['Timestamp', 'Source IP', 'Destination IP', 'Protocol', 'Total', 'Reputation', 'Country'].map((h) => (
+                      <TableCell key={h}>{h}</TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {traffic.slice(0, 20).map((item: any) => {
+                    const rep = item.reputation;
+                    const repScore = rep?.score ?? 0;
+                    const countryCode = rep?.country_code || item.country_code || '';
+                    const flag = FLAG_EMOJI[countryCode] || '';
+                    return (
+                      <TableRow key={item.id} sx={{ '&:hover': { bgcolor: 'rgba(148,163,184,0.03)' } }}>
+                        <TableCell sx={{ fontFamily: MONO, fontSize: '0.75rem', color: '#475569' }}>{new Date(item.timestamp).toLocaleString()}</TableCell>
+                        <TableCell sx={{ fontFamily: MONO, fontSize: '0.75rem' }}>{item.source_ip}</TableCell>
+                        <TableCell sx={{ fontFamily: MONO, fontSize: '0.75rem' }}>{item.destination_ip}</TableCell>
+                        <TableCell>
+                          <Box component="code" sx={{ px: 0.75, py: 0.25, borderRadius: '3px', bgcolor: 'rgba(59,130,246,0.08)', color: '#60a5fa', fontSize: '0.6875rem', fontFamily: MONO, fontWeight: 500 }}>
+                            {item.protocol}
+                          </Box>
+                        </TableCell>
+                        <TableCell sx={{ fontFamily: MONO, fontSize: '0.75rem', color: '#94a3b8' }}>{formatBytes(item.total_bytes || 0)}</TableCell>
+                        <TableCell>
+                          {rep ? (
+                            <Tooltip title={`ISP: ${rep.isp} | Reports: ${rep.total_reports}`}>
+                              <Box>
+                                <Typography sx={{ fontFamily: MONO, fontSize: '0.6875rem', color: getReputationColor(repScore), fontWeight: 600, mb: 0.25 }}>
+                                  {repScore}/100
+                                </Typography>
+                                <LinearProgress variant="determinate" value={repScore} sx={{
+                                  height: 2, borderRadius: 1, bgcolor: 'rgba(148,163,184,0.06)',
+                                  '& .MuiLinearProgress-bar': { bgcolor: getReputationColor(repScore), borderRadius: 1 },
+                                }} />
+                              </Box>
+                            </Tooltip>
+                          ) : (
+                            <Typography sx={{ fontFamily: MONO, fontSize: '0.6875rem', color: '#334155' }}>—</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell sx={{ fontFamily: MONO, fontSize: '0.75rem', color: '#64748b' }}>
+                          {flag ? `${flag} ` : ''}{countryCode || '—'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </CardContent>
+      </GlassCard>
+    </StaggerContainer>
   );
 };
 
 export default NetworkTraffic;
-

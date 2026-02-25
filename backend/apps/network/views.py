@@ -2,6 +2,7 @@ from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+from django_filters import rest_framework as dj_filters
 from django.db.models import Sum, Count
 from django.utils import timezone
 from datetime import timedelta
@@ -9,16 +10,30 @@ from .models import NetworkTraffic
 from .serializers import NetworkTrafficSerializer
 
 
+class NetworkTrafficFilter(dj_filters.FilterSet):
+    """
+    Filters for network traffic list endpoints.
+    Matches the frontend query params: protocol, source_ip, date_from, date_to.
+    """
+
+    date_from = dj_filters.DateTimeFilter(field_name="timestamp", lookup_expr="gte")
+    date_to = dj_filters.DateTimeFilter(field_name="timestamp", lookup_expr="lte")
+
+    class Meta:
+        model = NetworkTraffic
+        fields = ["protocol", "source_ip", "destination_ip", "connection_state", "date_from", "date_to"]
+
+
 class NetworkTrafficViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for network traffic data."""
-    
+
     queryset = NetworkTraffic.objects.all()
     serializer_class = NetworkTrafficSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['protocol', 'source_ip', 'destination_ip', 'connection_state']
-    search_fields = ['source_ip', 'destination_ip', 'application']
-    ordering_fields = ['timestamp', 'bytes_sent', 'bytes_received']
-    ordering = ['-timestamp']
+    filterset_class = NetworkTrafficFilter
+    search_fields = ["source_ip", "destination_ip", "application"]
+    ordering_fields = ["timestamp", "bytes_sent", "bytes_received"]
+    ordering = ["-timestamp"]
     
     @action(detail=False, methods=['get'])
     def protocols(self, request):

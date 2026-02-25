@@ -1,26 +1,9 @@
 import React, { useState } from 'react';
-import {
-  AppBar,
-  Toolbar,
-  IconButton,
-  Box,
-  InputBase,
-  Menu,
-  MenuItem,
-  Avatar,
-  Badge,
-  Select,
-  FormControl,
-} from '@mui/material';
-import {
-  Menu as MenuIcon,
-  Search as SearchIcon,
-  Notifications as NotificationsIcon,
-  Brightness4 as DarkModeIcon,
-  AccountCircle as AccountIcon,
-} from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AppBar, Toolbar, IconButton, Box, InputBase, Menu, MenuItem, Avatar, Badge, ListItemText } from '@mui/material';
+import { Menu as MenuIcon, Search, Bell, Moon, User as UserIcon } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -28,254 +11,142 @@ interface NavbarProps {
   onMenuClick: () => void;
 }
 
+const LANGUAGES = [
+  { code: 'en', label: 'EN' },
+  { code: 'ru', label: 'RU' },
+  { code: 'ky', label: 'KY' },
+  { code: 'tj', label: 'TJ' },
+  { code: 'kz', label: 'KZ' },
+];
+
+const menuPaperSx = {
+  mt: 1, minWidth: 140,
+  background: '#0f172a',
+  border: '0.5px solid rgba(148,163,184,0.1)',
+  boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+  backgroundImage: 'none',
+};
+
 const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
   const { user, logout } = useAuth();
+  const { toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [langAnchor, setLangAnchor] = useState<null | HTMLElement>(null);
   const [language, setLanguage] = useState(i18n.language);
 
-  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-    handleMenuClose();
-  };
+  const handleLogout = () => { logout(); navigate('/login'); setAnchorEl(null); };
 
   const handleLanguageChange = (lang: string) => {
     setLanguage(lang);
     i18n.changeLanguage(lang);
     localStorage.setItem('language', lang);
+    setLangAnchor(null);
   };
 
+  const currentLang = LANGUAGES.find((l) => l.code === language) || LANGUAGES[0];
+
   return (
-    <motion.div
-      initial={{ y: -100, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
+    <AppBar
+      position="fixed"
+      elevation={0}
+      sx={{
+        bgcolor: 'rgba(15, 23, 42, 0.85)',
+        borderBottom: '0.5px solid rgba(148,163,184,0.06)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        boxShadow: 'none',
+        zIndex: (theme) => theme.zIndex.drawer + 1,
+      }}
     >
-      <AppBar
-        position="fixed"
-        sx={{
-          bgcolor: 'background.paper',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
-          backdropFilter: 'blur(10px)',
-          zIndex: (theme) => theme.zIndex.drawer + 1,
-        }}
-      >
-        <Toolbar>
-          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-            <IconButton
-              edge="start"
-              color="inherit"
-              onClick={onMenuClick}
-              sx={{ mr: 2 }}
-            >
-              <MenuIcon />
-            </IconButton>
-          </motion.div>
+      <Toolbar sx={{ minHeight: '48px !important', gap: 1 }}>
+        <IconButton edge="start" size="small" sx={{ color: '#64748b' }} onClick={onMenuClick}>
+          <MenuIcon size={16} />
+        </IconButton>
 
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2, duration: 0.4 }}
-            style={{ flex: 1, maxWidth: 400, marginRight: 16 }}
-          >
-            <Box
-              sx={{
-                position: 'relative',
-                borderRadius: 2,
-                bgcolor: 'rgba(255, 255, 255, 0.05)',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  bgcolor: 'rgba(255, 255, 255, 0.08)',
-                  boxShadow: '0 4px 12px rgba(0, 188, 212, 0.2)',
-                },
-                '&:focus-within': {
-                  bgcolor: 'rgba(255, 255, 255, 0.1)',
-                  border: '1px solid rgba(0, 188, 212, 0.3)',
-                },
-                width: '100%',
-              }}
-            >
-              <Box
-                sx={{
-                  padding: '8px 12px',
-                  height: '100%',
-                  position: 'absolute',
-                  pointerEvents: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <SearchIcon sx={{ color: 'text.secondary' }} />
-              </Box>
-              <InputBase
-                placeholder={t('common.search')}
-                sx={{
-                  color: 'inherit',
-                  width: '100%',
-                  pl: '40px',
-                  pr: '12px',
-                  py: '8px',
-                }}
-              />
-            </Box>
-          </motion.div>
+        {/* Search */}
+        <Box sx={{
+          position: 'relative', borderRadius: '6px',
+          bgcolor: 'rgba(148,163,184,0.04)',
+          border: '0.5px solid rgba(148,163,184,0.06)',
+          transition: 'border-color 0.2s',
+          '&:focus-within': { borderColor: 'rgba(59,130,246,0.2)' },
+          flex: 1, maxWidth: 320,
+        }}>
+          <Box sx={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', display: 'flex', pointerEvents: 'none' }}>
+            <Search size={13} color="#475569" />
+          </Box>
+          <InputBase
+            placeholder={t('common.search')}
+            sx={{
+              color: '#94a3b8', width: '100%', pl: '32px', pr: '12px', py: '5px',
+              fontSize: '0.8125rem',
+              '& ::placeholder': { color: '#334155', opacity: 1 },
+            }}
+          />
+        </Box>
 
-          <Box sx={{ flexGrow: 1 }} />
+        <Box sx={{ flexGrow: 1 }} />
 
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3, duration: 0.4 }}
-            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-          >
-            <FormControl size="small" sx={{ minWidth: 100 }}>
-              <Select
-                value={language}
-                onChange={(e) => handleLanguageChange(e.target.value)}
-                sx={{
-                  color: 'text.primary',
-                  transition: 'all 0.3s ease',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255, 255, 255, 0.2)',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 188, 212, 0.5)',
-                  },
-                }}
-              >
-                <MenuItem value="en">EN</MenuItem>
-                <MenuItem value="ru">RU</MenuItem>
-                <MenuItem value="ky">KY</MenuItem>
-                <MenuItem value="tj">TJ</MenuItem>
-                <MenuItem value="kz">KZ</MenuItem>
-              </Select>
-            </FormControl>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+          {/* Language */}
+          <IconButton size="small" onClick={(e) => setLangAnchor(e.currentTarget)}
+            sx={{ color: '#64748b', fontSize: '0.6875rem', fontFamily: '"JetBrains Mono", monospace', fontWeight: 600, borderRadius: '4px', px: 0.75 }}>
+            {currentLang.label}
+          </IconButton>
+          <Menu anchorEl={langAnchor} open={Boolean(langAnchor)} onClose={() => setLangAnchor(null)}
+            PaperProps={{ sx: menuPaperSx }}>
+            {LANGUAGES.map((lang) => (
+              <MenuItem key={lang.code} selected={language === lang.code} onClick={() => handleLanguageChange(lang.code)}
+                sx={{ fontSize: '0.8125rem', py: 0.75, '&.Mui-selected': { bgcolor: 'rgba(59,130,246,0.1)' }, '&:hover': { bgcolor: 'rgba(148,163,184,0.06)' } }}>
+                <ListItemText sx={{ '& .MuiListItemText-primary': { fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem' } }}>{lang.label}</ListItemText>
+              </MenuItem>
+            ))}
+          </Menu>
 
-            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-              <IconButton color="inherit">
-                <Badge
-                  badgeContent={4}
-                  color="error"
-                  sx={{
-                    '& .MuiBadge-badge': {
-                      animation: 'pulse 2s ease-in-out infinite',
-                    },
-                  }}
-                >
-                  <NotificationsIcon />
-                </Badge>
-              </IconButton>
-            </motion.div>
+          {/* Notifications */}
+          <IconButton size="small" sx={{ color: '#64748b' }}>
+            <Badge badgeContent={4} color="error" sx={{ '& .MuiBadge-badge': { fontSize: '0.5625rem', height: 14, minWidth: 14, padding: '0 3px' } }}>
+              <Bell size={15} />
+            </Badge>
+          </IconButton>
 
-            <motion.div whileHover={{ scale: 1.1, rotate: 180 }} whileTap={{ scale: 0.9 }} transition={{ duration: 0.3 }}>
-              <IconButton color="inherit">
-                <DarkModeIcon />
-              </IconButton>
-            </motion.div>
+          {/* Theme */}
+          <IconButton size="small" sx={{ color: '#64748b' }} onClick={toggleTheme}>
+            <Moon size={15} />
+          </IconButton>
 
-            <motion.div
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-            >
-              <IconButton onClick={handleProfileMenuOpen} color="inherit">
-                <Avatar
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    bgcolor: 'primary.main',
-                    border: '2px solid rgba(0, 188, 212, 0.3)',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      borderColor: 'rgba(0, 188, 212, 0.6)',
-                      boxShadow: '0 0 12px rgba(0, 188, 212, 0.4)',
-                    },
-                  }}
-                >
-                  {user?.username.charAt(0).toUpperCase()}
-                </Avatar>
-              </IconButton>
-            </motion.div>
-          </motion.div>
+          {/* Profile */}
+          <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ ml: 0.5 }}>
+            <Avatar sx={{ width: 26, height: 26, bgcolor: '#1e293b', color: '#94a3b8', fontSize: '0.6875rem', fontWeight: 600, border: '0.5px solid rgba(148,163,184,0.1)' }}>
+              {user?.username.charAt(0).toUpperCase()}
+            </Avatar>
+          </IconButton>
 
           <AnimatePresence>
             {Boolean(anchorEl) && (
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleMenuClose}
-                anchorOrigin={{
-                  vertical: 'bottom',
-                  horizontal: 'right',
-                }}
-                transformOrigin={{
-                  vertical: 'top',
-                  horizontal: 'right',
-                }}
-                PaperProps={{
-                  sx: {
-                    mt: 1.5,
-                    minWidth: 180,
-                    background: 'rgba(26, 31, 58, 0.95)',
-                    backdropFilter: 'blur(20px)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-                  },
-                }}
-              >
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                >
-                  <MenuItem
-                    onClick={() => {
-                      navigate('/settings');
-                      handleMenuClose();
-                    }}
-                    sx={{
-                      transition: 'all 0.2s ease',
-                      '&:hover': {
-                        bgcolor: 'rgba(0, 188, 212, 0.1)',
-                      },
-                    }}
-                  >
-                    <AccountIcon sx={{ mr: 1 }} /> Profile
+              <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                PaperProps={{ sx: menuPaperSx }}>
+                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}>
+                  <MenuItem onClick={() => { navigate('/settings'); setAnchorEl(null); }}
+                    sx={{ fontSize: '0.8125rem', py: 0.75, gap: 1, '&:hover': { bgcolor: 'rgba(148,163,184,0.06)' } }}>
+                    <UserIcon size={14} /> Profile
                   </MenuItem>
-                  <MenuItem
-                    onClick={handleLogout}
-                    sx={{
-                      transition: 'all 0.2s ease',
-                      '&:hover': {
-                        bgcolor: 'rgba(244, 67, 54, 0.1)',
-                      },
-                    }}
-                  >
+                  <MenuItem onClick={handleLogout}
+                    sx={{ fontSize: '0.8125rem', py: 0.75, gap: 1, color: '#ef4444', '&:hover': { bgcolor: 'rgba(239,68,68,0.06)' } }}>
                     {t('common.logout')}
                   </MenuItem>
                 </motion.div>
               </Menu>
             )}
           </AnimatePresence>
-        </Toolbar>
-      </AppBar>
-    </motion.div>
+        </Box>
+      </Toolbar>
+    </AppBar>
   );
 };
 
 export default Navbar;
-

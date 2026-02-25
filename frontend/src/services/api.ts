@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import { User, SecurityAlert, ThreatIntelligence, DashboardStats } from '../types';
+import { User, SecurityAlert, ThreatIntelligence, DashboardStats, ProtocolStat, TrafficTimePoint } from '../types';
 
 const API_BASE_URL = (() => {
   const envUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE;
@@ -159,6 +159,28 @@ class ApiService {
     return response.data;
   }
 
+  // Stats endpoints (Elasticsearch-backed)
+  async getProtocolStats(): Promise<ProtocolStat[]> {
+    const response = await this.api.get('/stats/protocols/');
+    return response.data;
+  }
+
+  async getTrafficStats(): Promise<TrafficTimePoint[]> {
+    const response = await this.api.get('/stats/traffic/');
+    return response.data;
+  }
+
+  async getESAlerts(params?: any) {
+    const response = await this.api.get('/stats/alerts/', { params });
+    return response.data;
+  }
+
+  // Threat intel
+  async getIPReputation(ip: string) {
+    const response = await this.api.get('/threats/ip-reputation/', { params: { ip } });
+    return response.data;
+  }
+
   // System endpoints
   async getSystemHealth() {
     const response = await this.api.get('/system/health/');
@@ -172,6 +194,22 @@ class ApiService {
 
   async updateSystemSettings(settings: Record<string, any>) {
     const response = await this.api.put('/system/settings/', settings);
+    return response.data;
+  }
+
+  // User management (admin)
+  async listUsers(): Promise<User[]> {
+    const response = await this.api.get('/auth/users/');
+    return response.data;
+  }
+
+  async updateUser(userId: number, data: Partial<User>) {
+    const response = await this.api.put(`/auth/users/${userId}/`, data);
+    return response.data;
+  }
+
+  async deleteUser(userId: number) {
+    const response = await this.api.delete(`/auth/users/${userId}/`);
     return response.data;
   }
 }
@@ -211,9 +249,22 @@ export const threatsService = {
   searchThreats: (query: string) => apiService.searchThreats(query),
 };
 
+export const statsService = {
+  getProtocols: () => apiService.getProtocolStats(),
+  getTraffic: () => apiService.getTrafficStats(),
+  getAlerts: (params?: any) => apiService.getESAlerts(params),
+  getIPReputation: (ip: string) => apiService.getIPReputation(ip),
+};
+
 export const systemService = {
   getHealth: () => apiService.getSystemHealth(),
   getSettings: () => apiService.getSystemSettings(),
   updateSettings: (settings: Record<string, any>) => apiService.updateSystemSettings(settings),
+};
+
+export const userManagementService = {
+  listUsers: () => apiService.listUsers(),
+  updateUser: (id: number, data: Partial<any>) => apiService.updateUser(id, data),
+  deleteUser: (id: number) => apiService.deleteUser(id),
 };
 

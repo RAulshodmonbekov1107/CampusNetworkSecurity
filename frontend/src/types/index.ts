@@ -5,6 +5,7 @@ export interface User {
   first_name: string;
   last_name: string;
   role: 'admin' | 'analyst' | 'viewer';
+  is_superuser: boolean;
   phone?: string;
   department?: string;
   avatar?: string;
@@ -103,5 +104,34 @@ export interface DashboardStats {
     timestamp: string;
     source_ip: string;
   }>;
+}
+
+export interface ProtocolStat {
+  protocol: string;
+  count: number;
+  total_bytes: number;
+}
+
+export interface TrafficTimePoint {
+  time: string;
+  bytes: number;
+  count: number;
+}
+
+export interface IPReputation {
+  score: number;
+  country_code: string;
+  isp: string;
+  total_reports: number;
+}
+
+export interface RealtimeAlert {
+  event: string;
+  severity: string;
+  title: string;
+  category: string;
+  source_ip: string;
+  destination_ip: string;
+  timestamp: string;
 }
 

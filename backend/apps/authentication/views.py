@@ -134,6 +134,47 @@ def refresh_token(request):
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_users(request):
+    """List all users (admin only)."""
+    from .permissions import IsAdminRole
+    perm = IsAdminRole()
+    if not perm.has_permission(request, None):
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+
+    users = User.objects.all().order_by('-created_at')
+    return Response(UserSerializer(users, many=True).data)
+
+
+@api_view(['PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def manage_user(request, user_id):
+    """Update or delete a user (admin only)."""
+    from .permissions import IsAdminRole
+    perm = IsAdminRole()
+    if not perm.has_permission(request, None):
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        target_user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        if target_user.id == request.user.id:
+            return Response({'error': 'Cannot delete yourself'}, status=status.HTTP_400_BAD_REQUEST)
+        target_user.delete()
+        return Response({'message': 'User deleted'})
+
+    # PUT - update
+    for field in ('role', 'is_active', 'first_name', 'last_name', 'email', 'department'):
+        if field in request.data:
+            setattr(target_user, field, request.data[field])
+    target_user.save()
+    return Response(UserSerializer(target_user).data)
+
+
 def get_client_ip(request):
     """Get client IP address from request."""
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')

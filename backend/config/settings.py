@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'apps.alerts',
     'apps.threats',
     'apps.system',
+    'apps.stats',
 ]
 
 MIDDLEWARE = [
@@ -228,4 +229,13 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+
+# Elasticsearch
+ELASTICSEARCH_HOST = config('ELASTICSEARCH_HOST', default='http://localhost:9200')
+
+# Kafka
+KAFKA_BOOTSTRAP_SERVERS = config('KAFKA_BOOTSTRAP_SERVERS', default='localhost:9092')
+
+# AbuseIPDB (mock key by default)
+ABUSEIPDB_API_KEY = config('ABUSEIPDB_API_KEY', default='mock-api-key-for-development')
 

@@ -1,24 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import {
-  Drawer,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Toolbar,
-  Box,
-  Divider,
-} from '@mui/material';
-import {
-  Dashboard as DashboardIcon,
-  NetworkCheck as NetworkIcon,
-  Warning as AlertIcon,
-  Security as ThreatIcon,
-  Settings as SettingsIcon,
-  People as UsersIcon,
-} from '@mui/icons-material';
+import { Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Toolbar, Box, Divider } from '@mui/material';
+import { LayoutDashboard, Network, ShieldAlert, Bug, Settings, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 
@@ -28,12 +11,12 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { path: '/', label: 'common.dashboard', icon: DashboardIcon },
-  { path: '/network', label: 'common.network', icon: NetworkIcon },
-  { path: '/alerts', label: 'common.alerts', icon: AlertIcon },
-  { path: '/threats', label: 'common.threats', icon: ThreatIcon },
-  { path: '/settings', label: 'common.settings', icon: SettingsIcon },
-  { path: '/users', label: 'common.users', icon: UsersIcon },
+  { path: '/', label: 'common.dashboard', icon: LayoutDashboard },
+  { path: '/network', label: 'common.network', icon: Network },
+  { path: '/alerts', label: 'common.alerts', icon: ShieldAlert },
+  { path: '/threats', label: 'common.threats', icon: Bug },
+  { path: '/settings', label: 'common.settings', icon: Settings },
+  { path: '/users', label: 'common.users', icon: Users },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ open }) => {
@@ -41,182 +24,106 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
   const location = useLocation();
   const { t } = useTranslation();
 
-  const itemVariants = {
-    closed: { opacity: 0, x: -20 },
-    open: (i: number) => ({
-      opacity: 1,
-      x: 0,
-      transition: {
-        delay: i * 0.05,
-        duration: 0.3,
-      },
-    }),
-  };
-
   return (
     <Drawer
       variant="permanent"
       sx={{
-        width: open ? 260 : 80,
+        width: open ? 220 : 56,
         flexShrink: 0,
         '& .MuiDrawer-paper': {
-          width: open ? 260 : 80,
+          width: open ? 220 : 56,
           boxSizing: 'border-box',
-          bgcolor: 'background.paper',
-          borderRight: '1px solid rgba(255, 255, 255, 0.1)',
-          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          bgcolor: '#0f172a',
+          borderRight: '0.5px solid rgba(148, 163, 184, 0.06)',
+          transition: 'width 0.2s ease',
           overflowX: 'hidden',
-          backdropFilter: 'blur(10px)',
-          position: 'relative',
-          zIndex: 1200, // Ensure sidebar is always above content
+          zIndex: 1200,
         },
       }}
     >
-      <Toolbar>
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: open ? 'flex-start' : 'center',
-            width: '100%',
-            gap: 2,
-          }}
-        >
-          <motion.div
-            whileHover={{ scale: 1.1, rotate: [0, -5, 5, -5, 0] }}
-            whileTap={{ scale: 0.95 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                borderRadius: 2,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: 'bold',
-                fontSize: 18,
-                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  boxShadow: '0 6px 20px rgba(102, 126, 234, 0.6)',
-                },
-              }}
-            >
-              CS
-            </Box>
-          </motion.div>
+      <Toolbar sx={{ minHeight: '56px !important' }}>
+        <Box sx={{
+          display: 'flex', alignItems: 'center',
+          justifyContent: open ? 'flex-start' : 'center',
+          width: '100%', gap: 1.5,
+        }}>
+          <Box sx={{
+            width: 28, height: 28, borderRadius: '6px',
+            background: '#3b82f6',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontWeight: 700, fontSize: '0.6875rem',
+            fontFamily: '"JetBrains Mono", monospace',
+            flexShrink: 0,
+          }}>
+            CS
+          </Box>
           <AnimatePresence>
             {open && (
               <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.15 }}
               >
-                <Box sx={{ color: 'primary.main', fontWeight: 600, fontSize: 18 }}>
-                  Security Monitor
+                <Box sx={{
+                  color: '#e2e8f0', fontWeight: 600, fontSize: '0.8125rem',
+                  whiteSpace: 'nowrap', letterSpacing: '-0.01em',
+                }}>
+                  SecMonitor
                 </Box>
               </motion.div>
             )}
           </AnimatePresence>
         </Box>
       </Toolbar>
-      <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }} />
-      <List sx={{ px: 1, py: 2 }}>
-        {menuItems.map((item, index) => {
+      <Divider sx={{ borderColor: 'rgba(148, 163, 184, 0.06)' }} />
+      <List sx={{ px: 0.75, py: 1 }}>
+        {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
           return (
-            <motion.div
-              key={item.path}
-              custom={index}
-              variants={itemVariants}
-              initial="closed"
-              animate="open"
-            >
-              <ListItem disablePadding sx={{ mb: 0.5 }}>
-                <motion.div
-                  whileHover={{ x: 5 }}
-                  whileTap={{ scale: 0.95 }}
-                  style={{ width: '100%', pointerEvents: 'auto' }}
-                >
-                  <ListItemButton
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      navigate(item.path);
-                    }}
-                    sx={{
-                      borderRadius: 2,
-                      bgcolor: isActive ? 'primary.main' : 'transparent',
-                      color: isActive ? 'white' : 'text.secondary',
-                      position: 'relative',
-                      overflow: 'hidden',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '&::before': {
-                        content: '""',
-                        position: 'absolute',
-                        left: 0,
-                        top: 0,
-                        height: '100%',
-                        width: isActive ? '4px' : '0px',
-                        background: 'linear-gradient(180deg, #00bcd4, #008ba3)',
-                        transition: 'width 0.3s ease',
-                      },
-                      '&:hover': {
-                        bgcolor: isActive ? 'primary.dark' : 'rgba(255, 255, 255, 0.08)',
-                        transform: 'translateX(4px)',
-                        '&::before': {
-                          width: '4px',
-                        },
-                      },
-                      minHeight: 48,
-                      px: 2,
-                    }}
-                  >
+            <ListItem key={item.path} disablePadding sx={{ mb: 0.25 }}>
+              <ListItemButton
+                onClick={() => navigate(item.path)}
+                sx={{
+                  borderRadius: '6px',
+                  minHeight: 36,
+                  px: 1.25,
+                  bgcolor: isActive ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                  color: isActive ? '#3b82f6' : '#64748b',
+                  transition: 'all 0.15s ease',
+                  '&:hover': {
+                    bgcolor: isActive ? 'rgba(59, 130, 246, 0.12)' : 'rgba(148, 163, 184, 0.06)',
+                    color: isActive ? '#3b82f6' : '#94a3b8',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 32, color: 'inherit' }}>
+                  <Icon size={16} strokeWidth={isActive ? 2 : 1.5} />
+                </ListItemIcon>
+                <AnimatePresence>
+                  {open && (
                     <motion.div
-                      animate={isActive ? { scale: [1, 1.2, 1] } : {}}
-                      transition={{ duration: 0.3 }}
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: 'auto' }}
+                      exit={{ opacity: 0, width: 0 }}
+                      transition={{ duration: 0.15 }}
                     >
-                      <ListItemIcon
+                      <ListItemText
+                        primary={t(item.label)}
                         sx={{
-                          minWidth: 40,
-                          color: isActive ? 'white' : 'text.secondary',
-                          transition: 'color 0.3s ease',
+                          '& .MuiListItemText-primary': {
+                            fontSize: '0.8125rem',
+                            fontWeight: isActive ? 600 : 400,
+                            whiteSpace: 'nowrap',
+                          },
                         }}
-                      >
-                        <Icon />
-                      </ListItemIcon>
+                      />
                     </motion.div>
-                    <AnimatePresence>
-                      {open && (
-                        <motion.div
-                          initial={{ opacity: 0, width: 0 }}
-                          animate={{ opacity: 1, width: 'auto' }}
-                          exit={{ opacity: 0, width: 0 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          <ListItemText
-                            primary={t(item.label)}
-                            sx={{
-                              '& .MuiListItemText-primary': {
-                                fontWeight: isActive ? 600 : 400,
-                                transition: 'font-weight 0.3s ease',
-                              },
-                            }}
-                          />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </ListItemButton>
-                </motion.div>
-              </ListItem>
-            </motion.div>
+                  )}
+                </AnimatePresence>
+              </ListItemButton>
+            </ListItem>
           );
         })}
       </List>
@@ -225,4 +132,3 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
 };
 
 export default Sidebar;
-

@@ -1,6 +1,7 @@
 import json
 import logging
 import threading
+import time
 
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
@@ -8,6 +9,27 @@ from asgiref.sync import async_to_sync
 from decouple import config
 
 logger = logging.getLogger(__name__)
+
+
+class NetworkLiveConsumer(AsyncWebsocketConsumer):
+    """Streams every network event (flows, device changes, stats) live to the dashboard."""
+
+    GROUP = "network_live"
+
+    async def connect(self):
+        await self.accept()
+        await self.channel_layer.group_add(self.GROUP, self.channel_name)
+        # Send a welcome ping so the frontend knows it's connected
+        await self.send(text_data=json.dumps({"type": "connected"}))
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.GROUP, self.channel_name)
+
+    async def receive(self, text_data):
+        pass
+
+    async def network_event(self, event):
+        await self.send(text_data=json.dumps(event["data"]))
 
 
 class DashboardConsumer(AsyncWebsocketConsumer):

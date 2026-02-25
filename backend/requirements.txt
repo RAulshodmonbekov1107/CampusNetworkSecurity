@@ -38,3 +38,6 @@ confluent-kafka==2.5.0
 
 requests==2.32.3
 psutil==5.9.6
+
+# Real network packet capture
+scapy==2.5.0

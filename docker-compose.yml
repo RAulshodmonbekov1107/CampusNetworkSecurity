@@ -41,11 +41,14 @@ services:
       - zookeeper
     ports:
       - "9092:9092"
+      - "29092:29092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
@@ -130,58 +133,28 @@ services:
     ports:
       - "8000:8000"
 
-  # Seed historical data on first start
-  bootstrap:
+  # Real network traffic capture from host interface (wlo1)
+  network-monitor:
     build:
       context: ./backend
-    container_name: bootstrap-campus
+    container_name: network-monitor-campus
+    network_mode: host
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
     command: >
-      bash -lc "python manage.py migrate --noinput &&
-                python manage.py bootstrap_data"
+      bash -lc "sleep 20 &&
+                python manage.py capture_traffic --iface wlo1 --flush-interval 8"
     environment:
       - DEBUG=1
       - USE_POSTGRES=0
-      - USE_REDIS=1
-      - REDIS_HOST=redis
+      - USE_REDIS=0
+      - REDIS_HOST=127.0.0.1
       - REDIS_PORT=6379
-      - ELASTICSEARCH_HOST=http://elasticsearch:9200
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - ELASTICSEARCH_HOST=http://127.0.0.1:9200
+      - KAFKA_BOOTSTRAP_SERVERS=127.0.0.1:29092
     volumes:
       - ./backend:/app
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: "no"
-
-  # Continuous data simulator (ES + Kafka + ORM)
-  simulator:
-    build:
-      context: ./backend
-    container_name: simulator-campus
-    command: >
-      bash -lc "sleep 15 &&
-                python manage.py simulate_pipeline --rate 3"
-    environment:
-      - DEBUG=1
-      - USE_POSTGRES=0
-      - USE_REDIS=1
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - ELASTICSEARCH_HOST=http://elasticsearch:9200
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-    volumes:
-      - ./backend:/app
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     restart: unless-stopped
 
   # Kafka-to-DB consumer: persists Kafka events into Django models

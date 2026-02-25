@@ -73,26 +73,19 @@ def check_ip_reputation(ip_address: str) -> dict:
 
 
 def _mock_lookup(ip_address: str) -> dict:
-    """Deterministic mock result derived from the IP octets."""
-    import hashlib
+    """Return honest 'unknown' data when no real API key is configured.
 
-    digest = int(hashlib.md5(ip_address.encode()).hexdigest(), 16)
-    score = digest % 101
-    countries = ["US", "CN", "RU", "DE", "BR", "IN", "KR", "JP", "GB", "FR"]
-    country = countries[digest % len(countries)]
-    isps = [
-        "Amazon AWS", "DigitalOcean", "OVH SAS", "Hetzner",
-        "Google Cloud", "Microsoft Azure", "Alibaba Cloud",
-        "Linode", "Vultr", "Cloudflare",
-    ]
-    isp = isps[digest % len(isps)]
+    Private/campus IPs are marked safe (score 0).  Public IPs are marked
+    as 'not checked' so the UI doesn't display fabricated reputation data.
+    """
+    is_private = ip_address.startswith(("10.", "192.168.", "172.16.", "127."))
 
     return {
         "ip": ip_address,
-        "abuse_confidence_score": score,
-        "country_code": country,
-        "isp": isp,
-        "is_public": not ip_address.startswith(("10.", "192.168.", "172.")),
-        "total_reports": digest % 500,
+        "abuse_confidence_score": 0,
+        "country_code": "" if is_private else "",
+        "isp": "Campus Network" if is_private else "",
+        "is_public": not is_private,
+        "total_reports": 0,
         "last_reported_at": None,
     }

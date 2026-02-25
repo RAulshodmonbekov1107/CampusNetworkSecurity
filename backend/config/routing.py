@@ -8,5 +8,6 @@ websocket_urlpatterns = [
     path('ws/dashboard/', consumers.DashboardConsumer.as_asgi()),
     path('ws/alerts/', consumers.AlertConsumer.as_asgi()),
     path('ws/network/', consumers.NetworkConsumer.as_asgi()),
+    path('ws/live/', consumers.NetworkLiveConsumer.as_asgi()),
 ]
 

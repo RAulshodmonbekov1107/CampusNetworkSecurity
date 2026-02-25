@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
@@ -12,12 +10,18 @@ services:
       - "9200:9200"
     volumes:
       - es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.13.4
     container_name: kibana-campus
     depends_on:
-      - elasticsearch
+      elasticsearch:
+        condition: service_healthy
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     ports:
@@ -45,33 +49,69 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: kafka-init-campus
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo "Creating Kafka topics..."
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --replication-factor 1 --partitions 3 --topic network_flows
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --replication-factor 1 --partitions 3 --topic security_alerts
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 --topic other_events
+        echo "Topics created:"
+        kafka-topics --list --bootstrap-server kafka:9092
+    restart: "no"
 
   logstash:
     image: docker.elastic.co/logstash/logstash:8.13.4
     container_name: logstash-campus
     depends_on:
-      - elasticsearch
-      - kafka
+      elasticsearch:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     ports:
-      - "5044:5044"   # beats/file input (optional)
-      - "9600:9600"   # monitoring API
+      - "5044:5044"
+      - "9600:9600"
     volumes:
       - ./logstash/pipelines:/usr/share/logstash/pipeline
       - ./logstash/config:/usr/share/logstash/config
-      # Optional: mount Zeek/Suricata logs from host if you run them locally
       - /var/log/zeek:/var/log/zeek:ro
       - /var/log/suricata:/var/log/suricata:ro
+
+  redis:
+    image: redis:7.2
+    container_name: redis-campus
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   backend:
     build:
       context: ./backend
     container_name: backend-campus
     command: >
-      bash -lc "python manage.py migrate &&
-                python manage.py runserver 0.0.0.0:8000"
+      bash -lc "python manage.py migrate --noinput &&
+                daphne -b 0.0.0.0 -p 8000 config.asgi:application"
     environment:
       - DEBUG=1
       - USE_POSTGRES=0
+      - USE_REDIS=1
       - ALLOWED_HOSTS=localhost,127.0.0.1,64.226.115.117,backend
       - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://64.226.115.117:3000,http://64.226.115.117:23000
       - REDIS_HOST=redis
@@ -81,11 +121,93 @@ services:
     volumes:
       - ./backend:/app
     depends_on:
-      - elasticsearch
-      - kafka
-      - redis
+      elasticsearch:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
       - "8000:8000"
+
+  # Seed historical data on first start
+  bootstrap:
+    build:
+      context: ./backend
+    container_name: bootstrap-campus
+    command: >
+      bash -lc "python manage.py migrate --noinput &&
+                python manage.py bootstrap_data"
+    environment:
+      - DEBUG=1
+      - USE_POSTGRES=0
+      - USE_REDIS=1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - ELASTICSEARCH_HOST=http://elasticsearch:9200
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    volumes:
+      - ./backend:/app
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: "no"
+
+  # Continuous data simulator (ES + Kafka + ORM)
+  simulator:
+    build:
+      context: ./backend
+    container_name: simulator-campus
+    command: >
+      bash -lc "sleep 15 &&
+                python manage.py simulate_pipeline --rate 3"
+    environment:
+      - DEBUG=1
+      - USE_POSTGRES=0
+      - USE_REDIS=1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - ELASTICSEARCH_HOST=http://elasticsearch:9200
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    volumes:
+      - ./backend:/app
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Kafka-to-DB consumer: persists Kafka events into Django models
+  kafka-consumer:
+    build:
+      context: ./backend
+    container_name: kafka-consumer-campus
+    command: >
+      bash -lc "sleep 20 &&
+                python manage.py consume_kafka"
+    environment:
+      - DEBUG=1
+      - USE_POSTGRES=0
+      - USE_REDIS=1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - ELASTICSEARCH_HOST=http://elasticsearch:9200
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    volumes:
+      - ./backend:/app
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
   frontend:
     build:
@@ -96,6 +218,7 @@ services:
       - CHOKIDAR_USEPOLLING=true
       - REACT_APP_API_BASE=http://backend:8000/api
       - REACT_APP_API_URL=http://backend:8000/api
+      - REACT_APP_WS_HOST=localhost:8000
       - HOST=0.0.0.0
       - DANGEROUSLY_DISABLE_HOST_CHECK=true
       - WDS_SOCKET_PORT=0
@@ -107,13 +230,5 @@ services:
     ports:
       - "3000:3000"
 
-  redis:
-    image: redis:7.2
-    container_name: redis-campus
-    ports:
-      - "6379:6379"
-
 volumes:
   es-data:
-
-

@@ -96,18 +96,30 @@ class Command(BaseCommand):
         except Exception as exc:
             self.stderr.write(f"Failed to store NetworkTraffic: {exc}")
 
+    CATEGORY_TO_TYPE = {
+        "Attempted Information Leak": "port_scan",
+        "Potentially Bad Traffic": "suspicious_traffic",
+        "A Network Trojan was Detected": "malware",
+        "Attempted Administrator Privilege Gain": "brute_force",
+        "Web Application Attack": "intrusion",
+        "Attempted Denial of Service": "ddos",
+        "Misc activity": "suspicious_traffic",
+    }
+
     def _handle_security_alert(self, data: dict) -> None:
         """
         Map a normalized Suricata/Zeek alert event into SecurityAlert model.
         """
         alert = data.get("alert", {})
+        category = alert.get("category", "")
+        alert_type = self.CATEGORY_TO_TYPE.get(category, "intrusion")
 
         try:
             SecurityAlert.objects.create(
                 title=alert.get("signature", "Security Alert"),
-                description=alert.get("category", "N/A"),
+                description=category or "N/A",
                 severity=self._map_severity(alert.get("severity")),
-                alert_type=alert.get("category", "intrusion"),
+                alert_type=alert_type,
                 status="new",
                 source_ip=data.get("source_ip"),
                 destination_ip=data.get("destination_ip"),
@@ -115,7 +127,7 @@ class Command(BaseCommand):
                 destination_port=data.get("destination_port"),
                 protocol=data.get("proto"),
                 signature=alert.get("signature"),
-                rule_id=str(alert.get("signature_id")),
+                rule_id=str(alert.get("signature_id", "")),
                 country_code=data.get("geoip", {}).get("country_code2"),
                 timestamp=data.get("@timestamp", timezone.now()),
             )

@@ -3,7 +3,9 @@ import { RealtimeAlert } from '../types';
 
 const WS_BASE = (() => {
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${proto}://${window.location.host}`;
+  const wsHost = process.env.REACT_APP_WS_HOST
+    || window.location.hostname + ':8000';
+  return `${proto}://${wsHost}`;
 })();
 
 export function useAlertWebSocket(onAlert: (alert: RealtimeAlert) => void) {

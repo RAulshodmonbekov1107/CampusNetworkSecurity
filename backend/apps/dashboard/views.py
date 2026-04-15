@@ -4,7 +4,6 @@ from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 from django.utils import timezone
 from django.core.cache import cache
-from django.views.decorators.cache import cache_page
 from datetime import timedelta
 from django.db.models import Count, Sum, Q
 from apps.network.models import NetworkTraffic
@@ -19,7 +18,6 @@ class BurstRateThrottle(UserRateThrottle):
     rate = '100/min'
 
 
-@cache_page(60 * 5)  # Cache for 5 minutes
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @throttle_classes([BurstRateThrottle])

@@ -50,29 +50,40 @@ class Command(BaseCommand):
           ):
               unique[key] = ioc
 
-      upserted = 0
-      for ioc in unique.values():
-          obj, created = ThreatIntelligence.objects.update_or_create(
+      now = timezone.now()
+      objects = [
+          ThreatIntelligence(
               ioc_type=ioc["ioc_type"],
               ioc_value=ioc["ioc_value"],
-              defaults={
-                  "threat_type": ioc.get("threat_type", "malware"),
-                  "description": ioc.get("description", ""),
-                  "reputation_score": ioc.get("reputation_score", 0),
-                  "source": ioc.get("source", "Custom"),
-                  "first_seen": ioc.get("first_seen", timezone.now()),
-                  "last_seen": ioc.get("last_seen", timezone.now()),
-                  "country_code": ioc.get("country_code"),
-                  "latitude": ioc.get("latitude"),
-                  "longitude": ioc.get("longitude"),
-                  "tags": ioc.get("tags", []),
-                  "metadata": ioc.get("metadata", {}),
-                  "is_active": ioc.get("is_active", True),
-              },
+              threat_type=ioc.get("threat_type", "malware"),
+              description=ioc.get("description", ""),
+              reputation_score=ioc.get("reputation_score", 0),
+              source=ioc.get("source", "Custom"),
+              first_seen=ioc.get("first_seen", now),
+              last_seen=ioc.get("last_seen", now),
+              country_code=ioc.get("country_code"),
+              latitude=ioc.get("latitude"),
+              longitude=ioc.get("longitude"),
+              tags=ioc.get("tags", []),
+              metadata=ioc.get("metadata", {}),
+              is_active=ioc.get("is_active", True),
           )
-          upserted += 1
+          for ioc in unique.values()
+      ]
 
-      self.stdout.write(self.style.SUCCESS(f"Upserted {upserted} threat intel records"))
+      update_fields = [
+          "threat_type", "description", "reputation_score", "source",
+          "first_seen", "last_seen", "country_code", "latitude", "longitude",
+          "tags", "metadata", "is_active",
+      ]
+      ThreatIntelligence.objects.bulk_create(
+          objects,
+          update_conflicts=True,
+          unique_fields=["ioc_type", "ioc_value"],
+          update_fields=update_fields,
+      )
+
+      self.stdout.write(self.style.SUCCESS(f"Upserted {len(objects)} threat intel records"))
 
       # Export a compact IOC JSON file for Logstash enrichment
       export_path = Path(BASE_DIR) / "data" / "threat_iocs.json"

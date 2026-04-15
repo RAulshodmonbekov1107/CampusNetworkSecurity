@@ -1,0 +1,33 @@
+# Environment
+.env
+*.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+db.sqlite3
+
+# Node
+node_modules/
+frontend/build/
+
+# Wazuh certs (generated, contain private keys)
+wazuh/config/wazuh_indexer_ssl_certs/
+
+# Docker volumes
+es-data/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Attack lab temp files
+.attack-lab/
+
+# Temp files
+*.tmp

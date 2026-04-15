@@ -64,8 +64,14 @@ class Command(BaseCommand):
                 country_code=random.choice(['US', 'RU', 'CN', 'DE', 'GB', 'FR', None]),
             ))
 
-        NetworkTraffic.objects.bulk_create(traffic_records, batch_size=500)
-        self.stdout.write(self.style.SUCCESS(f'Created {len(traffic_records)} network traffic records'))
+        before_count = NetworkTraffic.objects.count()
+        NetworkTraffic.objects.bulk_create(traffic_records, batch_size=500, ignore_conflicts=True)
+        after_count = NetworkTraffic.objects.count()
+        created = after_count - before_count
+        skipped = len(traffic_records) - created
+        self.stdout.write(self.style.SUCCESS(
+            f'Created {created} network traffic records ({skipped} skipped due to conflicts)'
+        ))
 
         # Generate Security Alerts
         self.stdout.write(f'Generating {options["alerts"]} security alerts...')
@@ -107,8 +113,14 @@ class Command(BaseCommand):
                 timestamp=timestamp,
             ))
 
-        SecurityAlert.objects.bulk_create(alert_records, batch_size=500)
-        self.stdout.write(self.style.SUCCESS(f'Created {len(alert_records)} security alerts'))
+        before_count = SecurityAlert.objects.count()
+        SecurityAlert.objects.bulk_create(alert_records, batch_size=500, ignore_conflicts=True)
+        after_count = SecurityAlert.objects.count()
+        created = after_count - before_count
+        skipped = len(alert_records) - created
+        self.stdout.write(self.style.SUCCESS(
+            f'Created {created} security alerts ({skipped} skipped due to conflicts)'
+        ))
 
         # Generate Threat Intelligence
         self.stdout.write(f'Generating {options["threats"]} threat intelligence records...')
@@ -151,8 +163,14 @@ class Command(BaseCommand):
                 is_active=random.choice([True, True, True, False]),  # 75% active
             ))
 
-        ThreatIntelligence.objects.bulk_create(threat_records, batch_size=500)
-        self.stdout.write(self.style.SUCCESS(f'Created {len(threat_records)} threat intelligence records'))
+        before_count = ThreatIntelligence.objects.count()
+        ThreatIntelligence.objects.bulk_create(threat_records, batch_size=500, ignore_conflicts=True)
+        after_count = ThreatIntelligence.objects.count()
+        created = after_count - before_count
+        skipped = len(threat_records) - created
+        self.stdout.write(self.style.SUCCESS(
+            f'Created {created} threat intelligence records ({skipped} skipped due to conflicts)'
+        ))
 
         self.stdout.write(self.style.SUCCESS('\nMock data generation completed!'))
 

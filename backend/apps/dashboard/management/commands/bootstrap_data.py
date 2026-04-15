@@ -31,8 +31,8 @@ MALICIOUS_IPS = [
     "45.33.32.156", "198.51.100.99", "203.0.113.42", "185.220.101.15",
     "91.219.237.229", "176.10.99.200", "171.25.193.9",
 ]
-PROTOCOLS = ["TCP", "UDP", "HTTP", "HTTPS", "SSH", "DNS", "ICMP", "FTP", "SMTP", "SSL"]
-PORT_MAP = {"HTTP": 80, "HTTPS": 443, "SSH": 22, "DNS": 53, "FTP": 21, "SMTP": 25, "SSL": 443}
+PROTOCOLS = ["TCP", "UDP", "HTTP", "HTTPS", "SSH", "DNS", "ICMP", "FTP", "DHCP"]
+PORT_MAP = {"HTTP": 80, "HTTPS": 443, "SSH": 22, "DNS": 53, "FTP": 21, "DHCP": 67}
 SERVICES = ["Chrome", "Firefox", "SSH", "MySQL", "PostgreSQL", "Apache", "Nginx", "curl", "Docker"]
 COUNTRIES = ["US", "RU", "CN", "DE", "GB", "FR", "KR", "JP", "BR", "IN"]
 

@@ -4,15 +4,23 @@ from apps.threats.services import check_ip_reputation
 
 
 class NetworkTrafficSerializer(serializers.ModelSerializer):
-    """Serializer for network traffic data with reputation enrichment."""
+    """Serializer for network traffic data with optional reputation enrichment.
+
+    Pass ``?include_reputation=true`` to enable the per-row IP reputation lookup.
+    """
 
     total_bytes = serializers.ReadOnlyField()
     total_packets = serializers.ReadOnlyField()
-    reputation = serializers.SerializerMethodField()
 
     class Meta:
         model = NetworkTraffic
         fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and request.query_params.get('include_reputation') == 'true':
+            self.fields['reputation'] = serializers.SerializerMethodField()
 
     def get_reputation(self, obj):
         """Return abuse reputation + country for the destination IP."""

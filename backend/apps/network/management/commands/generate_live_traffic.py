@@ -12,7 +12,6 @@ import random
 from datetime import datetime, timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from elasticsearch import Elasticsearch
 from apps.network.models import NetworkTraffic
 
 # Realistic data pools
@@ -77,15 +76,15 @@ class Command(BaseCommand):
             )
         )
 
-        # Connect to Elasticsearch
         try:
-            es = Elasticsearch(['http://elasticsearch:9200'], request_timeout=5)
+            from apps.system.elasticsearch_client import get_es_client
+            es = get_es_client()
             es.ping()
-            self.stdout.write(self.style.SUCCESS('✅ Connected to Elasticsearch'))
+            self.stdout.write(self.style.SUCCESS('Connected to Elasticsearch (shared client)'))
         except Exception as e:
             self.stdout.write(
                 self.style.WARNING(
-                    f'⚠️  Elasticsearch not available: {e}\n'
+                    f'Elasticsearch not available: {e}\n'
                     f'   Continuing with database only...'
                 )
             )

@@ -29,11 +29,12 @@ INSTALLED_APPS = [
     # Third party
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'channels',
     'django_filters',
-    # 'drf_yasg',  # Swagger documentation (optional - commented out)
-    # 'django_prometheus',  # Monitoring (optional - commented out)
+    'drf_yasg',  # Swagger / ReDoc at /api/docs/ and /api/redoc/
+    # 'django_prometheus',  # Monitoring (optional — enable with middleware in urls)
     
     # Local apps
     'apps.authentication',
@@ -189,6 +190,10 @@ CORS_ALLOWED_ORIGINS = config(
 
 CORS_ALLOW_CREDENTIALS = True
 
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.vercel\.app$",
+]
+
 # Channels (WebSocket)
 CHANNEL_LAYERS = {
     'default': {
@@ -209,6 +214,7 @@ if USE_REDIS:
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
             'LOCATION': f"redis://{config('REDIS_HOST', default='127.0.0.1')}:{config('REDIS_PORT', default=6379)}/1",
+            'KEY_PREFIX': 'campus',
         }
     }
 else:
@@ -216,6 +222,7 @@ else:
         'default': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
             'LOCATION': 'unique-snowflake',
+            'KEY_PREFIX': 'campus',
         }
     }
 

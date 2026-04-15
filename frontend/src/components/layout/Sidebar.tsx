@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Toolbar, Box, Divider } from '@mui/material';
-import { LayoutDashboard, Network, ShieldAlert, Bug, Settings, Users } from 'lucide-react';
+import { LayoutDashboard, Network, ShieldAlert, Bug, Settings, Users, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 
@@ -15,6 +15,7 @@ const menuItems = [
   { path: '/network', label: 'common.network', icon: Network },
   { path: '/alerts', label: 'common.alerts', icon: ShieldAlert },
   { path: '/threats', label: 'common.threats', icon: Bug },
+  { path: '/siem', label: 'common.siem', icon: Shield },
   { path: '/settings', label: 'common.settings', icon: Settings },
   { path: '/users', label: 'common.users', icon: Users },
 ];

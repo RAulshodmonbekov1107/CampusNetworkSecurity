@@ -261,12 +261,10 @@ class Command(BaseCommand):
 
     def _connect_es(self):
         try:
-            from elasticsearch import Elasticsearch
-            from decouple import config
-            host = config("ELASTICSEARCH_HOST", default="http://localhost:9200")
-            es = Elasticsearch(hosts=[host], request_timeout=10)
+            from apps.system.elasticsearch_client import get_es_client
+            es = get_es_client()
             if es.ping():
-                self.stdout.write(self.style.SUCCESS(f"ES connected: {host}"))
+                self.stdout.write(self.style.SUCCESS("ES connected (shared client)"))
                 return es
         except Exception as exc:
             self.stdout.write(self.style.WARNING(f"ES unavailable: {exc}"))

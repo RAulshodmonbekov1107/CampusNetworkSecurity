@@ -27,35 +27,30 @@ from django.utils import timezone
 from apps.network.models import NetworkTraffic
 from apps.alerts.models import SecurityAlert
 
-_channel_layer = None
-_channel_lock = threading.Lock()
 
-def _get_channel_layer():
-    global _channel_layer
-    with _channel_lock:
-        if _channel_layer is None:
-            try:
-                from decouple import config
-                from channels_redis.core import RedisChannelLayer
-                host = config("REDIS_HOST", default="127.0.0.1")
-                port = config("REDIS_PORT", default=6379, cast=int)
-                _channel_layer = RedisChannelLayer(hosts=[{"host": host, "port": port}])
-            except Exception:
-                pass
-    return _channel_layer
+def _delivery_report(err, msg):
+    """Kafka delivery callback — log failures so they are visible."""
+    if err is not None:
+        logging.getLogger(__name__).warning("Kafka delivery failed: %s", err)
+
 
 def _push_live(data: dict):
-    """Push a live event to the network_live WebSocket group."""
+    """Push a live event to the network_live WebSocket group.
+
+    Uses ``async_to_sync`` from asgiref (consistent with the rest of the
+    codebase) and Django Channels' ``get_channel_layer`` singleton instead of
+    manually constructing a Redis channel layer.
+    """
     try:
-        import asyncio
-        layer = _get_channel_layer()
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+
+        layer = get_channel_layer()
         if layer is None:
             return
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(
-            layer.group_send("network_live", {"type": "network_event", "data": data})
+        async_to_sync(layer.group_send)(
+            "network_live", {"type": "network_event", "data": data}
         )
-        loop.close()
     except Exception:
         pass
 
@@ -130,11 +125,13 @@ class Command(BaseCommand):
         self._flows = {}
         self._flow_lock = threading.Lock()
         self._local_ip = None
-        # Anomaly detection state
+        # Anomaly detection state — sliding window (never cleared automatically)
+        self._anomaly_lock = threading.Lock()
         self._port_tracker = defaultdict(set)   # src_ip -> set of dst_ports
         self._conn_tracker = defaultdict(int)   # (src_ip, dst_port) -> count
         self._vol_tracker = defaultdict(int)    # src_ip -> total bytes
         self._dns_tracker = defaultdict(int)    # src_ip -> oversized DNS count
+        self._alerted_ips = {}                  # src_ip -> timestamp of last alert (cooldown)
 
     def add_arguments(self, parser):
         parser.add_argument("--iface", type=str, default="wlo1",
@@ -277,70 +274,105 @@ class Command(BaseCommand):
     def _update_anomaly_trackers(self, src, dst, dport, pkt_len, pkt):
         from scapy.all import DNS
 
-        self._port_tracker[src].add(dport)
-        self._conn_tracker[(src, dport)] += 1
-        self._vol_tracker[src] += pkt_len
+        with self._anomaly_lock:
+            self._port_tracker[src].add(dport)
+            self._conn_tracker[(src, dport)] += 1
+            self._vol_tracker[src] += pkt_len
 
-        if pkt.haslayer(DNS):
-            dns = pkt[DNS]
-            if dns.qr == 0 and dns.qd:
-                qname = dns.qd.qname.decode("utf-8", errors="ignore") if dns.qd.qname else ""
-                if len(qname) > DNS_TUNNEL_LEN:
-                    self._dns_tracker[src] += 1
+            if pkt.haslayer(DNS):
+                dns = pkt[DNS]
+                if dns.qr == 0 and dns.qd:
+                    qname = dns.qd.qname.decode("utf-8", errors="ignore") if dns.qd.qname else ""
+                    if len(qname) > DNS_TUNNEL_LEN:
+                        self._dns_tracker[src] += 1
+
+    def _in_cooldown(self, key, cooldown_secs=60):
+        """Prevent duplicate alerts for the same IP within cooldown_secs."""
+        now = time.time()
+        last = self._alerted_ips.get(key, 0)
+        if now - last < cooldown_secs:
+            return True
+        self._alerted_ips[key] = now
+        return False
 
     def _detect_anomalies(self, es, producer):
+        with self._anomaly_lock:
+            port_snapshot = {k: set(v) for k, v in self._port_tracker.items()}
+            conn_snapshot = dict(self._conn_tracker)
+            vol_snapshot = dict(self._vol_tracker)
+            dns_snapshot = dict(self._dns_tracker)
+
         alerts = []
 
-        for src, ports in list(self._port_tracker.items()):
+        for src, ports in port_snapshot.items():
             if len(ports) >= PORT_SCAN_THRESHOLD:
-                alerts.append(self._make_alert(
-                    src=src,
-                    title=f"Port Scan Detected — {len(ports)} ports from {src}",
-                    category="port_scan",
-                    severity="high",
-                    description=f"Host {src} probed {len(ports)} unique destination ports",
-                    ports=sorted(list(ports))[:20],
-                ))
+                if not self._in_cooldown(f"scan:{src}"):
+                    alerts.append(self._make_alert(
+                        src=src,
+                        title=f"Port Scan Detected — {len(ports)} ports from {src}",
+                        category="port_scan",
+                        severity="high",
+                        description=f"Host {src} probed {len(ports)} unique destination ports",
+                        ports=sorted(list(ports))[:20],
+                    ))
+                with self._anomaly_lock:
+                    self._port_tracker[src].clear()
 
-        for (src, dport), count in list(self._conn_tracker.items()):
+        for (src, dport), count in conn_snapshot.items():
             if dport in (22, 3389, 23, 21, 445) and count >= BRUTE_FORCE_THRESHOLD:
-                svc = WELL_KNOWN_PORTS.get(dport, str(dport))
-                alerts.append(self._make_alert(
-                    src=src,
-                    title=f"Brute Force Attempt — {count} connections to {svc}",
-                    category="brute_force",
-                    severity="critical",
-                    description=f"Host {src} made {count} connections to port {dport} ({svc})",
-                ))
+                if not self._in_cooldown(f"brute:{src}:{dport}"):
+                    svc = WELL_KNOWN_PORTS.get(dport, str(dport))
+                    alerts.append(self._make_alert(
+                        src=src,
+                        title=f"Brute Force Attempt — {count} connections to {svc}",
+                        category="brute_force",
+                        severity="critical",
+                        description=f"Host {src} made {count} connections to port {dport} ({svc})",
+                    ))
+                with self._anomaly_lock:
+                    self._conn_tracker[(src, dport)] = 0
 
-        for src, total in list(self._vol_tracker.items()):
+        for src, total in vol_snapshot.items():
             if total >= HIGH_VOLUME_BYTES:
-                mb = total / 1_000_000
-                alerts.append(self._make_alert(
-                    src=src,
-                    title=f"High Traffic Volume — {mb:.1f} MB from {src}",
-                    category="data_exfiltration" if not src.startswith(CAMPUS_SUBNET) else "suspicious_traffic",
-                    severity="high",
-                    description=f"Host {src} transferred {mb:.1f} MB in the monitoring window",
-                ))
+                if not self._in_cooldown(f"vol:{src}"):
+                    mb = total / 1_000_000
+                    alerts.append(self._make_alert(
+                        src=src,
+                        title=f"High Traffic Volume — {mb:.1f} MB from {src}",
+                        category="data_exfiltration" if not src.startswith(CAMPUS_SUBNET) else "suspicious_traffic",
+                        severity="high",
+                        description=f"Host {src} transferred {mb:.1f} MB in the monitoring window",
+                    ))
+                with self._anomaly_lock:
+                    self._vol_tracker[src] = 0
 
-        for src, count in list(self._dns_tracker.items()):
+        for src, count in dns_snapshot.items():
             if count >= 3:
-                alerts.append(self._make_alert(
-                    src=src,
-                    title=f"DNS Tunneling Suspected — {count} oversized queries from {src}",
-                    category="suspicious_traffic",
-                    severity="critical",
-                    description=f"Host {src} sent {count} DNS queries longer than {DNS_TUNNEL_LEN} bytes",
-                ))
+                if not self._in_cooldown(f"dns:{src}"):
+                    alerts.append(self._make_alert(
+                        src=src,
+                        title=f"DNS Tunneling Suspected — {count} oversized queries from {src}",
+                        category="suspicious_traffic",
+                        severity="critical",
+                        description=f"Host {src} sent {count} DNS queries longer than {DNS_TUNNEL_LEN} bytes",
+                    ))
+                with self._anomaly_lock:
+                    self._dns_tracker[src] = 0
 
         for alert in alerts:
             self._push_alert(alert, es, producer)
 
-        self._port_tracker.clear()
-        self._conn_tracker.clear()
-        self._vol_tracker.clear()
-        self._dns_tracker.clear()
+        # Every 30 cycles (~4 min) do a full clear to prevent unbounded memory growth
+        self._anomaly_cycle = getattr(self, "_anomaly_cycle", 0) + 1
+        if self._anomaly_cycle >= 30:
+            self._anomaly_cycle = 0
+            with self._anomaly_lock:
+                self._port_tracker.clear()
+                self._conn_tracker.clear()
+                self._vol_tracker.clear()
+                self._dns_tracker.clear()
+            now = time.time()
+            self._alerted_ips = {k: v for k, v in self._alerted_ips.items() if now - v < 120}
 
     def _make_alert(self, src, title, category, severity, description, ports=None):
         return {
@@ -362,8 +394,14 @@ class Command(BaseCommand):
     def _flush_loop(self, interval, es, producer):
         while self._running:
             time.sleep(interval)
-            self._flush_flows(es, producer)
-            self._detect_anomalies(es, producer)
+            try:
+                self._flush_flows(es, producer)
+            except Exception as exc:
+                logger.error("Flush error: %s", exc)
+            try:
+                self._detect_anomalies(es, producer)
+            except Exception as exc:
+                logger.error("Detection error: %s", exc)
 
     def _flush_flows(self, es, producer):
         with self._flow_lock:
@@ -375,6 +413,11 @@ class Command(BaseCommand):
 
         now_str = datetime.utcnow().isoformat() + "Z"
         idx_date = datetime.utcnow().strftime("%Y.%m.%d")
+        es_index = f"network-flows-{idx_date}"
+
+        es_actions = []
+        kafka_payloads = []
+        orm_objects = []
 
         for flow in flows:
             duration = max(flow.last_seen - flow.first_seen, 0.001)
@@ -414,39 +457,46 @@ class Command(BaseCommand):
                 "direction": direction,
             }
 
-            if es:
-                try:
-                    es.index(index=f"network-flows-{idx_date}", document=es_doc)
-                except Exception as exc:
-                    logger.debug("ES index error: %s", exc)
+            es_actions.append({"_index": es_index, "_source": es_doc})
+            kafka_payloads.append(json.dumps(es_doc).encode())
 
-            if producer:
+            orm_objects.append(NetworkTraffic(
+                timestamp=timezone.now(),
+                source_ip=flow.src,
+                destination_ip=flow.dst,
+                source_port=flow.sport,
+                destination_port=flow.dport,
+                protocol=self._map_to_model_proto(flow.proto),
+                bytes_sent=flow.bytes_sent,
+                bytes_received=flow.bytes_recv,
+                packets_sent=flow.pkts_sent,
+                packets_received=flow.pkts_recv,
+                connection_state=conn_state,
+                duration=round(duration, 3),
+                application=flow.proto if flow.proto not in PROTO_MAP.values() else None,
+            ))
+
+        if es and es_actions:
+            try:
+                from elasticsearch.helpers import bulk
+                bulk(es, es_actions, raise_on_error=False)
+            except Exception as exc:
+                logger.debug("ES bulk index error: %s", exc)
+
+        if producer and kafka_payloads:
+            for payload in kafka_payloads:
                 try:
-                    producer.produce("network_flows", json.dumps(es_doc).encode())
+                    producer.produce(
+                        "network_flows", payload, callback=_delivery_report
+                    )
                 except Exception as exc:
                     logger.debug("Kafka produce error: %s", exc)
+            producer.flush()
 
-            try:
-                NetworkTraffic.objects.create(
-                    timestamp=timezone.now(),
-                    source_ip=flow.src,
-                    destination_ip=flow.dst,
-                    source_port=flow.sport,
-                    destination_port=flow.dport,
-                    protocol=self._map_to_model_proto(flow.proto),
-                    bytes_sent=flow.bytes_sent,
-                    bytes_received=flow.bytes_recv,
-                    packets_sent=flow.pkts_sent,
-                    packets_received=flow.pkts_recv,
-                    connection_state=conn_state,
-                    duration=round(duration, 3),
-                    application=flow.proto if flow.proto not in PROTO_MAP.values() else None,
-                )
-            except Exception as exc:
-                logger.debug("ORM create error: %s", exc)
-
-        if producer:
-            producer.poll(0)
+        try:
+            NetworkTraffic.objects.bulk_create(orm_objects, ignore_conflicts=True)
+        except Exception as exc:
+            logger.debug("ORM bulk_create error: %s", exc)
 
         # --- Push live snapshot to WebSocket dashboard ---
         try:
@@ -496,8 +546,7 @@ class Command(BaseCommand):
         except Exception:
             pass
 
-        self.stdout.write(f"  Flushed {len(flows)} flows", ending="\r")
-        self.stdout.flush()
+        self.stdout.write(f"  Flushed {len(flows)} flows")
 
     def _map_to_model_proto(self, proto):
         proto_upper = proto.upper()
@@ -528,14 +577,18 @@ class Command(BaseCommand):
             "data_exfiltration": "data_exfiltration",
             "suspicious_traffic": "suspicious_traffic",
         }
+        src_ip = event.get("source_ip", "0.0.0.0")
+        category = alert_info.get("category", "")
+        severity_str = severity_map.get(alert_info.get("severity"), "medium")
+
         try:
             SecurityAlert.objects.create(
                 title=alert_info.get("signature", "Alert"),
-                description=alert_info.get("category", "N/A"),
-                severity=severity_map.get(alert_info.get("severity"), "medium"),
-                alert_type=CATEGORY_MAP.get(alert_info.get("category"), "suspicious_traffic"),
+                description=category or "N/A",
+                severity=severity_str,
+                alert_type=CATEGORY_MAP.get(category, "suspicious_traffic"),
                 status="new",
-                source_ip=event.get("source_ip", "0.0.0.0"),
+                source_ip=src_ip,
                 destination_ip=event.get("destination_ip"),
                 protocol="TCP",
                 signature=alert_info.get("signature"),
@@ -544,6 +597,43 @@ class Command(BaseCommand):
             )
         except Exception as exc:
             logger.debug("ORM alert error: %s", exc)
+
+        # Upsert a ThreatIntelligence record so the Threat Intel page shows real data
+        THREAT_MAP = {
+            "port_scan": "exploit",
+            "brute_force": "exploit",
+            "data_exfiltration": "botnet",
+            "suspicious_traffic": "c2",
+        }
+        SCORE_MAP = {
+            "port_scan": 60,
+            "brute_force": 75,
+            "data_exfiltration": 70,
+            "suspicious_traffic": 55,
+        }
+        threat_type = THREAT_MAP.get(category, "exploit")
+        base_score = SCORE_MAP.get(category, 55)
+        try:
+            from apps.threats.models import ThreatIntelligence
+            existing = ThreatIntelligence.objects.filter(ioc_type="ip", ioc_value=src_ip).first()
+            if existing:
+                existing.reputation_score = min(100, existing.reputation_score + 8)
+                existing.last_seen = timezone.now()
+                existing.save(update_fields=["reputation_score", "last_seen", "updated_at"])
+            else:
+                ThreatIntelligence.objects.create(
+                    ioc_type="ip",
+                    ioc_value=src_ip,
+                    threat_type=threat_type,
+                    description=alert_info.get("signature", "Detected by campus IDS"),
+                    reputation_score=base_score,
+                    source="Campus IDS",
+                    first_seen=timezone.now(),
+                    last_seen=timezone.now(),
+                    tags=[category],
+                )
+        except Exception as exc:
+            logger.debug("ThreatIntel upsert error: %s", exc)
 
         self.stdout.write(self.style.WARNING(
             f"  ALERT: {alert_info.get('signature', '?')}"
@@ -563,17 +653,15 @@ class Command(BaseCommand):
     # -- Connections ---------------------------------------------------------
 
     def _connect_es(self):
-        from decouple import config
-        host = config("ELASTICSEARCH_HOST", default="http://localhost:9200")
+        from apps.system.elasticsearch_client import get_es_client
         for attempt in range(6):
             try:
-                from elasticsearch import Elasticsearch
-                es = Elasticsearch(hosts=[host], request_timeout=10)
+                es = get_es_client()
                 if es.ping():
-                    self.stdout.write(self.style.SUCCESS(f"ES connected: {host}"))
+                    self.stdout.write(self.style.SUCCESS("ES connected (shared client)"))
                     return es
                 self.stdout.write(self.style.WARNING(
-                    f"ES ping failed ({host}), retry {attempt+1}/6..."
+                    f"ES ping failed, retry {attempt+1}/6..."
                 ))
             except Exception as exc:
                 self.stdout.write(self.style.WARNING(

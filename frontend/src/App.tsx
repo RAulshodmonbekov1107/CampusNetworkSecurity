@@ -21,6 +21,7 @@ const SecurityAlerts = lazy(() => import('./pages/SecurityAlerts'));
 const ThreatIntelligence = lazy(() => import('./pages/ThreatIntelligence'));
 const Settings = lazy(() => import('./pages/Settings'));
 const UserManagement = lazy(() => import('./pages/UserManagement'));
+const SIEM = lazy(() => import('./pages/SIEM'));
 
 const LoadingFallback: React.FC = () => (
   <Box
@@ -113,6 +114,7 @@ const App: React.FC = () => {
                   <Route path="network" element={<NetworkTraffic />} />
                   <Route path="alerts" element={<SecurityAlerts />} />
                   <Route path="threats" element={<ThreatIntelligence />} />
+                  <Route path="siem" element={<SIEM />} />
                   <Route
                     path="settings"
                     element={

@@ -3,20 +3,12 @@ import { User, SecurityAlert, ThreatIntelligence, DashboardStats, ProtocolStat, 
 
 const API_BASE_URL = (() => {
   const envUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE;
-  if (!envUrl) return '/api';
+  if (!envUrl) return 'http://localhost:8000/api';
 
   try {
-    // If envUrl is absolute, only use it when it matches the current page host.
-    const parsed = new URL(envUrl);
-    if (typeof window !== 'undefined') {
-      if (parsed.hostname === window.location.hostname) return envUrl;
-      // hostname differs — avoid using a baked absolute URL pointing to another host
-      // so the dev proxy or same-origin `/api` is used instead.
-      return '/api';
-    }
+    new URL(envUrl);
     return envUrl;
   } catch (e) {
-    // envUrl is likely a relative path already (e.g. '/api') — use as-is
     return envUrl;
   }
 })();
@@ -254,6 +246,49 @@ export const statsService = {
   getTraffic: () => apiService.getTrafficStats(),
   getAlerts: (params?: any) => apiService.getESAlerts(params),
   getIPReputation: (ip: string) => apiService.getIPReputation(ip),
+};
+
+export const siemService = {
+  getOverview: async () => {
+    const r = await axios.create({
+      baseURL: API_BASE_URL,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+      },
+    }).get('/stats/siem/overview/');
+    return r.data;
+  },
+  getAlerts: async (params?: any) => {
+    const r = await axios.create({
+      baseURL: API_BASE_URL,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+      },
+    }).get('/stats/siem/alerts/', { params });
+    return r.data;
+  },
+  getMitre: async () => {
+    const r = await axios.create({
+      baseURL: API_BASE_URL,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+      },
+    }).get('/stats/siem/mitre/');
+    return r.data;
+  },
+  getFim: async () => {
+    const r = await axios.create({
+      baseURL: API_BASE_URL,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+      },
+    }).get('/stats/siem/fim/');
+    return r.data;
+  },
 };
 
 export const systemService = {

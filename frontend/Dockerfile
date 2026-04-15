@@ -1,12 +1,17 @@
-FROM node:18-alpine
+FROM node:18-alpine AS build
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
-COPY package*.json ./
-RUN npm install
+COPY package.json ./
+COPY package-lock.json ./
+RUN npm ci
 
 COPY . .
+RUN npm run build
 
-CMD ["npm", "start"]
-
-
+FROM node:18-alpine
+RUN npm install -g serve
+WORKDIR /app
+COPY --from=build /app/build ./build
+EXPOSE 3000
+CMD ["serve", "-s", "build", "-l", "3000"]

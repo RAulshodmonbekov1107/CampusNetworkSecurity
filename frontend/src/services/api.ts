@@ -3,10 +3,13 @@ import { User, SecurityAlert, ThreatIntelligence, DashboardStats, ProtocolStat, 
 
 const API_BASE_URL = (() => {
   const envUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE;
-  if (!envUrl) return 'http://localhost:8000/api';
+  if (!envUrl) return '/api';
 
   try {
-    new URL(envUrl);
+    const parsed = new URL(envUrl);
+    if (typeof window !== 'undefined' && parsed.hostname !== window.location.hostname) {
+      return '/api';
+    }
     return envUrl;
   } catch (e) {
     return envUrl;

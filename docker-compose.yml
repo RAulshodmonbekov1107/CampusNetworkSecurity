@@ -218,6 +218,7 @@ services:
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile.dev
     container_name: frontend-campus
     command: ["npm", "start"]
     environment:

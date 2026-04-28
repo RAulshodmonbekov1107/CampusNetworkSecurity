@@ -45,7 +45,7 @@ const Settings: React.FC = () => {
             <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#64748b', mb: 2 }}>Profile</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2.5 }}>
               <Avatar sx={{ width: 48, height: 48, bgcolor: '#1e293b', color: '#94a3b8', fontSize: '1rem', fontWeight: 600, border: '0.5px solid rgba(148,163,184,0.1)', mr: 2 }}>
-                {user?.username.charAt(0).toUpperCase()}
+                {user?.username?.charAt(0)?.toUpperCase() || 'U'}
               </Avatar>
               <Box>
                 <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0' }}>{user?.username}</Typography>

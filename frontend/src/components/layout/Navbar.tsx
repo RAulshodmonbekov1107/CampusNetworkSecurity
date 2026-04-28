@@ -120,7 +120,7 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
           {/* Profile */}
           <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ ml: 0.5 }}>
             <Avatar sx={{ width: 26, height: 26, bgcolor: '#1e293b', color: '#94a3b8', fontSize: '0.6875rem', fontWeight: 600, border: '0.5px solid rgba(148,163,184,0.1)' }}>
-              {user?.username.charAt(0).toUpperCase()}
+              {user?.username?.charAt(0)?.toUpperCase() || 'U'}
             </Avatar>
           </IconButton>
 
